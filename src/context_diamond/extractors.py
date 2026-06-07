@@ -1,0 +1,205 @@
+"""Deterministic feature extraction for Context Diamond."""
+
+from __future__ import annotations
+
+import re
+from collections import Counter
+
+from .model import Message, SentenceShard
+from .tokenizer import estimate_tokens, split_sentences
+
+FACET_TITLES = {
+    "pulse": "Diamond Pulse",
+    "goal": "Intent And Success Criteria",
+    "constraints": "Rules And Constraints",
+    "decisions": "Decisions Already Made",
+    "facts": "Stable Facts",
+    "state": "Current Working State",
+    "open_loops": "Open Questions And Risks",
+    "glossary": "Entities And Anchors",
+}
+
+FACET_KEYWORDS = {
+    "goal": (
+        "goal",
+        "objective",
+        "we need",
+        "build",
+        "create",
+        "ship",
+        "deliver",
+        "user wants",
+        "success",
+    ),
+    "constraints": (
+        "must",
+        "never",
+        "do not",
+        "cannot",
+        "constraint",
+        "budget",
+        "limit",
+        "required",
+        "without",
+    ),
+    "decisions": (
+        "decided",
+        "decision",
+        "choose",
+        "chosen",
+        "use ",
+        "will ",
+        "approved",
+        "instead",
+        "default",
+    ),
+    "state": (
+        "currently",
+        "implemented",
+        "failing",
+        "error",
+        "bug",
+        "file",
+        "path",
+        "branch",
+        "test",
+        "todo",
+    ),
+    "open_loops": (
+        "question",
+        "risk",
+        "blocked",
+        "unknown",
+        "unclear",
+        "needs",
+        "next",
+        "follow",
+        "investigate",
+    ),
+}
+
+CODE_OR_PATH_RE = re.compile(r"`[^`]+`|[A-Za-z0-9_./-]+\.(?:py|ts|tsx|js|md|json|toml|yml|yaml)")
+ENTITY_RE = re.compile(r"\b[A-Z][A-Za-z0-9]*(?:[A-Z][A-Za-z0-9]*)?\b")
+
+
+def normalize_messages(
+    text_or_messages: str | list[Message] | list[dict[str, str]],
+) -> list[Message]:
+    if isinstance(text_or_messages, str):
+        return [Message(role="source", content=text_or_messages)]
+
+    messages: list[Message] = []
+    for item in text_or_messages:
+        if isinstance(item, Message):
+            messages.append(item)
+        else:
+            messages.append(
+                Message(
+                    role=item.get("role", "source"),
+                    content=item.get("content", ""),
+                    name=item.get("name"),
+                )
+            )
+    return messages
+
+
+def create_shards(messages: list[Message]) -> list[SentenceShard]:
+    raw: list[tuple[str, str]] = []
+    for message in messages:
+        role = message.name or message.role
+        for sentence in split_sentences(message.content):
+            raw.append((role, sentence))
+
+    total = max(len(raw), 1)
+    return [
+        SentenceShard(
+            index=index,
+            role=role,
+            text=text,
+            facet=detect_facet(text),
+            score=score_sentence(text, index=index, total=total, role=role),
+            reasons=tuple(score_reasons(text)),
+        )
+        for index, (role, text) in enumerate(raw)
+    ]
+
+
+def detect_facet(text: str) -> str:
+    lowered = f" {text.lower()} "
+    compact = text.lower().strip()
+    without_speaker = re.sub(r"^[a-z][a-z _-]{0,24}:\s+", "", compact)
+
+    if without_speaker.startswith(("decision:", "decided:", "choice:")):
+        return "decisions"
+    if without_speaker.startswith(("current state:", "state:", "currently:")):
+        return "state"
+    if without_speaker.startswith(("open question:", "open risk:", "risk:", "blocked:")):
+        return "open_loops"
+
+    if "?" in text:
+        return "open_loops"
+
+    hits = {
+        facet: sum(1 for keyword in keywords if keyword in lowered)
+        for facet, keywords in FACET_KEYWORDS.items()
+    }
+    facet, count = max(hits.items(), key=lambda item: item[1])
+    if count:
+        return facet
+
+    if CODE_OR_PATH_RE.search(text):
+        return "state"
+
+    return "facts"
+
+
+def score_sentence(text: str, *, index: int, total: int, role: str) -> float:
+    lowered = text.lower()
+    score = 1.0
+
+    if role.lower() in {"user", "customer", "owner"}:
+        score += 0.45
+    if CODE_OR_PATH_RE.search(text):
+        score += 0.4
+    if any(marker in lowered for marker in ("must", "never", "important", "required")):
+        score += 0.55
+    if any(marker in lowered for marker in ("decided", "decision", "will", "chosen")):
+        score += 0.35
+    if "?" in text:
+        score += 0.3
+
+    token_count = estimate_tokens(text)
+    if 8 <= token_count <= 36:
+        score += 0.25
+    elif token_count > 80:
+        score -= 0.25
+
+    recency = index / max(total - 1, 1)
+    score += recency * 0.35
+    return round(score, 3)
+
+
+def score_reasons(text: str) -> list[str]:
+    lowered = text.lower()
+    reasons: list[str] = []
+    if CODE_OR_PATH_RE.search(text):
+        reasons.append("code-or-path")
+    if any(marker in lowered for marker in ("must", "never", "required")):
+        reasons.append("constraint")
+    if any(marker in lowered for marker in ("decided", "decision", "chosen")):
+        reasons.append("decision")
+    if "?" in text:
+        reasons.append("question")
+    return reasons
+
+
+def extract_entities(shards: list[SentenceShard], *, limit: int = 14) -> list[str]:
+    counter: Counter[str] = Counter()
+    for shard in shards:
+        for match in CODE_OR_PATH_RE.findall(shard.text):
+            counter[match.strip("`")] += 3
+        for match in ENTITY_RE.findall(shard.text):
+            if len(match) > 2 and match.lower() not in {"the", "this", "that"}:
+                counter[match] += 1
+
+    return [entity for entity, _ in counter.most_common(limit)]
