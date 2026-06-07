@@ -49,8 +49,6 @@ FACET_KEYWORDS = {
         "decision",
         "choose",
         "chosen",
-        "use ",
-        "will ",
         "approved",
         "instead",
         "default",
@@ -59,6 +57,8 @@ FACET_KEYWORDS = {
         "currently",
         "implemented",
         "failing",
+        "failed",
+        "failure",
         "error",
         "bug",
         "file",
@@ -160,8 +160,12 @@ def create_shards(messages: list[Message]) -> list[SentenceShard]:
 def detect_facet(text: str) -> str:
     lowered = f" {text.lower()} "
     compact = text.lower().strip()
-    without_speaker = re.sub(r"^[a-z][a-z _-]{0,24}:\s+", "", compact)
+    without_speaker = _strip_speaker(compact)
 
+    if compact.startswith("noise log"):
+        return "noise"
+    if compact.startswith(("tool:", "error:", "failure:")):
+        return "state"
     if without_speaker.startswith(("decision:", "decided:", "choice:")):
         return "decisions"
     if without_speaker.startswith(("current state:", "state:", "currently:")):
@@ -220,6 +224,7 @@ def score_sentence(text: str, *, index: int, total: int, role: str) -> float:
 
 def score_reasons(text: str) -> list[str]:
     lowered = text.lower()
+    without_speaker = _strip_speaker(lowered.strip())
     reasons: list[str] = []
     if CODE_OR_PATH_RE.search(text):
         reasons.append("code-or-path")
@@ -227,7 +232,9 @@ def score_reasons(text: str) -> list[str]:
         reasons.append("constraint")
     if any(marker in lowered for marker in ("decided", "decision", "chosen")):
         reasons.append("decision")
-    if any(marker in lowered for marker in ("risk", "question", "blocked", "unknown")):
+    if "?" in text or without_speaker.startswith(
+        ("open question:", "open risk:", "risk:", "blocked:")
+    ):
         reasons.append("question")
     return reasons
 
@@ -235,6 +242,8 @@ def score_reasons(text: str) -> list[str]:
 def extract_entities(shards: list[SentenceShard], *, limit: int = 14) -> list[str]:
     counter: Counter[str] = Counter()
     for shard in shards:
+        if shard.facet == "noise":
+            continue
         for match in CODE_OR_PATH_RE.findall(shard.text):
             counter[match.strip("`")] += 3
         for match in ENTITY_RE.findall(shard.text):
@@ -242,3 +251,11 @@ def extract_entities(shards: list[SentenceShard], *, limit: int = 14) -> list[st
                 counter[match] += 1
 
     return [entity for entity, _ in counter.most_common(limit)]
+
+
+def _strip_speaker(text: str) -> str:
+    return re.sub(
+        r"^(user|assistant|system|developer|tool|customer|owner):\s+",
+        "",
+        text,
+    )

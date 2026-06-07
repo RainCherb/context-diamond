@@ -26,9 +26,9 @@ class CompressionConfig:
             "goal": 0.14,
             "constraints": 0.16,
             "decisions": 0.16,
-            "facts": 0.15,
+            "facts": 0.11,
             "state": 0.15,
-            "open_loops": 0.08,
+            "open_loops": 0.12,
             "glossary": 0.04,
         }
     )
@@ -83,12 +83,13 @@ class ContextDiamondCompressor:
 
         fitted = self._fit_capsule(capsule)
         metadata = fitted.metadata | {
+            "budget_scope": "sections",
             "tokenizer_profile": self.config.tokenizer_profile,
             "profile_source_tokens": estimate_profile_tokens(
                 source_text,
                 self.config.tokenizer_profile,
             ),
-            "profile_capsule_tokens": estimate_profile_tokens(
+            "profile_rendered_tokens": estimate_profile_tokens(
                 fitted.to_markdown(),
                 self.config.tokenizer_profile,
             ),

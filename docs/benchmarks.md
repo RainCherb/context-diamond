@@ -22,7 +22,7 @@ The benchmark compares Context Diamond against two simple baselines:
 For each source, it reports:
 
 - estimated source tokens
-- estimated capsule tokens
+- estimated rendered capsule tokens
 - compression ratio
 - signal recall for constraints, decisions, risks, and code/path anchors
 

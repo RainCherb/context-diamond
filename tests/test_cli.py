@@ -59,3 +59,5 @@ def test_cli_can_emit_loss_report_json(tmp_path: Path, capsys) -> None:
     captured = capsys.readouterr()
     assert '"loss_report"' in captured.out
     assert '"profile_source_tokens"' in captured.out
+    assert '"profile_rendered_tokens"' in captured.out
+    assert '"budget_scope": "sections"' in captured.out

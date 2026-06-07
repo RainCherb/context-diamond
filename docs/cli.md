@@ -22,6 +22,10 @@ ctxd INPUT
 - `--loss-report`: include kept/omitted shard audit data in JSON metadata.
 - `--tokenizer-profile`: add profile-based token estimates to metadata.
 
+`--budget` controls selected capsule sections. Full Markdown output includes
+headers and metadata lines, so benchmark reports may show a larger rendered-token
+count than the internal section budget.
+
 ## Examples
 
 ```bash

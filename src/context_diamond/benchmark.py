@@ -15,7 +15,7 @@ from .tokenizer import TOKEN_RE
 
 SIGNAL_PATTERNS = {
     "constraints": re.compile(r"\b(must|never|required|do not|cannot|without)\b", re.I),
-    "decisions": re.compile(r"\b(decision|decided|chosen|approved|default)\b", re.I),
+    "decisions": re.compile(r"\b(decision|decided|chosen|approved)\b", re.I),
     "risks": re.compile(r"\b(risk|question|blocked|unknown|unclear)\b", re.I),
     "code": re.compile(r"`[^`]+`|[A-Za-z0-9_./-]+\.(?:py|ts|tsx|js|md|json|toml|yml|yaml)"),
 }
@@ -69,7 +69,7 @@ def run_benchmark(
 
         results.append(
             BenchmarkResult(
-                source=str(path),
+                source=_source_label(path),
                 budget=budget,
                 profile=profile,
                 source_tokens=source_tokens,
@@ -182,6 +182,10 @@ def _clip_tail(text: str, budget: int) -> str:
 
 def _format_recall(recall: dict[str, float]) -> str:
     return ", ".join(f"{name}:{value:.2f}" for name, value in recall.items())
+
+
+def _source_label(path: Path) -> str:
+    return path.name if path.is_absolute() else path.as_posix()
 
 
 if __name__ == "__main__":
