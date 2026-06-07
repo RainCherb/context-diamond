@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Reworked README and repository positioning for a clearer GitHub landing page.
 - Added CLI `--title` support for named capsules.
 - Added CLI `--loss-report` and tokenizer profile metadata.
 - Clarified budget metadata with `budget_scope` and `profile_rendered_tokens`.

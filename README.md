@@ -1,81 +1,126 @@
 # Context Diamond
 
-Context Diamond is a deterministic context compression system for LLM workflows.
-It turns long chats, issue threads, notes, transcripts, and project logs into a
-small, auditable "context capsule" that preserves the pieces a model needs most:
+> Stop pasting the same messy context into every LLM. Turn chats, logs, issues,
+> agent state, and docs into small, auditable context capsules.
 
-- intent and success criteria
-- hard rules and constraints
+[![CI](https://github.com/RainCherb/context-diamond/actions/workflows/ci.yml/badge.svg)](https://github.com/RainCherb/context-diamond/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](pyproject.toml)
+[![No API Keys](https://img.shields.io/badge/API%20keys-not%20required-brightgreen.svg)](docs/architecture.md)
+[![OpenCode MCP](https://img.shields.io/badge/OpenCode-MCP%20ready-purple.svg)](docs/opencode.md)
+
+Context Diamond is a deterministic context compression toolkit for LLM handoffs.
+It extracts the things models keep losing in long conversations:
+
+- goals and success criteria
+- hard constraints
 - decisions already made
-- stable facts
 - current working state
 - open questions and risks
-- entities, file paths, and anchors
+- files, symbols, entities, and anchors
 
-The project is intentionally useful without API keys. The default engine is
-extractive, auditable, and budget-aware, so it can run locally before any text is
-sent to a model.
+It is built for developers who switch between coding agents, OpenCode, chat UIs,
+RAG pipelines, issue threads, and local notes. The default engine is offline,
+zero-dependency, inspectable, and safe to run before any text is sent to an LLM.
 
-## Why This Exists
+## Why People Click This
 
-LLM conversations usually lose money and clarity in the same place: repeated
-context. People paste the same requirements, decisions, logs, and partial state
-again and again. Generic summarization helps, but it often blurs constraints or
-forgets why a decision was made.
+Most LLM context tools promise "memory". Context Diamond gives you a portable
+handoff artifact you can read, diff, benchmark, paste, store, or feed to another
+agent.
 
-Context Diamond uses a different shape. Instead of one paragraph summary, it
-builds a structured capsule with separate facets. Each facet has its own token
-budget and scoring rules. The result is easier for a model to follow and easier
-for a human to audit.
+Use it when you want to:
 
-## Install
+- recover signal from noisy agent sessions
+- reduce repeated prompt/context cost
+- preserve constraints before handing work to another model
+- keep decisions visible instead of buried in a paragraph summary
+- audit what got dropped with a loss report
+- expose compression as an OpenCode MCP tool
+
+## 60-Second Demo
+
+Install from GitHub:
 
 ```bash
 pip install git+https://github.com/RainCherb/context-diamond.git
 ```
 
-For editable local development:
+Compress a long handoff:
 
 ```bash
-git clone https://github.com/RainCherb/context-diamond.git
-cd context-diamond
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install -e ".[dev]"
-python -m pytest
+context-diamond examples/long_handoff.md --budget 320 --title "Sprint Handoff"
 ```
 
-On macOS or Linux, activate with `source .venv/bin/activate`.
-
-## CLI Usage
-
-Compress a markdown transcript into a capsule:
+Get JSON with an audit trail:
 
 ```bash
-context-diamond examples/chat_transcript.md --budget 500 --output capsule.md
+context-diamond examples/long_handoff.md --format json --loss-report
 ```
 
-Give a capsule a handoff-specific title:
+Benchmark it against dumb head/tail clipping:
 
 ```bash
-context-diamond examples/chat_transcript.md --title "Sprint Handoff" --budget 500
+context-diamond-bench examples/long_handoff.md --budget 320
 ```
 
-Write JSON for automation:
+Example benchmark output:
 
-```bash
-ctxd examples/chat_transcript.md --format json --budget 450 --output capsule.json
+```text
+535 source tokens -> 387 rendered capsule tokens
+1.38x ratio
+constraints:1.00 decisions:1.00 risks:1.00 code:1.00
 ```
 
-Include an audit trail of omitted shards:
+## The Pitch
 
-```bash
-ctxd examples/chat_transcript.md --format json --loss-report
+Generic summaries are cheap, but they often flatten the one thing you needed to
+keep. Context Diamond keeps the handoff structured:
+
+| Problem | Context Diamond answer |
+| --- | --- |
+| "The model forgot the rules." | Rules live in their own section. |
+| "We reopened an old decision." | Decisions are extracted separately. |
+| "The transcript is mostly noise." | Noise is scored down and shown in loss reports. |
+| "I need this in OpenCode." | Run it as a local MCP server. |
+| "I do not want another API bill." | No runtime API calls by default. |
+
+## OpenCode MCP
+
+Add Context Diamond to OpenCode as a local MCP server:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "context_diamond": {
+      "type": "local",
+      "command": ["context-diamond-mcp"],
+      "enabled": true,
+      "timeout": 10000
+    }
+  }
+}
 ```
 
-Read from stdin:
+OpenCode tools:
+
+- `context_diamond_compress_text`
+- `context_diamond_compress_file`
+- `context_diamond_benchmark_file`
+
+See [docs/opencode.md](docs/opencode.md).
+
+## CLI
 
 ```bash
+# Markdown capsule
+context-diamond notes.md --budget 500 --output capsule.md
+
+# JSON capsule for automation
+context-diamond notes.md --format json --loss-report --output capsule.json
+
+# Stdin
 type notes.md | context-diamond - --budget 350
 ```
 
@@ -84,8 +129,6 @@ Use a JSON message list:
 ```bash
 context-diamond conversation.json --messages-json --format json
 ```
-
-The JSON input shape is:
 
 ```json
 [
@@ -111,21 +154,7 @@ capsule = compressor.compress(text)
 print(capsule.to_markdown())
 ```
 
-## Benchmarks
-
-Compare a capsule against deterministic clipping baselines:
-
-```bash
-context-diamond-bench examples/long_handoff.md --budget 320
-```
-
-The benchmark reports estimated token reduction plus constraint, decision, risk,
-and code/path signal recall. See [docs/benchmarks.md](docs/benchmarks.md).
-
-## Integrations
-
-Dependency-free adapters are available for chat messages, document objects, and
-tool/MCP payloads:
+Integration helpers:
 
 ```python
 from context_diamond import compress_documents, compress_messages, compress_tool_payload
@@ -133,95 +162,85 @@ from context_diamond import compress_documents, compress_messages, compress_tool
 
 See [docs/integrations.md](docs/integrations.md).
 
-## OpenCode
-
-Context Diamond can run as a local MCP server for OpenCode:
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "context_diamond": {
-      "type": "local",
-      "command": ["context-diamond-mcp"],
-      "enabled": true
-    }
-  }
-}
-```
-
-See [docs/opencode.md](docs/opencode.md).
-
-## Why This Over X
-
-Context Diamond is best understood as an auditable handoff capsule, not a
-universal replacement for prompt compressors, RAG, or long-term memory systems.
-See [docs/why-context-diamond.md](docs/why-context-diamond.md).
-
-## The Diamond Capsule
-
-The compressor splits source context into sentence shards, scores them, assigns a
-facet, then selects high-signal shards under a target budget.
-
-Facets:
-
-- **Diamond Pulse**: the three strongest signals across the source.
-- **Intent And Success Criteria**: what the user or project is trying to achieve.
-- **Rules And Constraints**: requirements that should not be violated.
-- **Decisions Already Made**: choices that should not be reopened accidentally.
-- **Stable Facts**: reusable background information.
-- **Current Working State**: files, errors, tests, paths, and implementation state.
-- **Open Questions And Risks**: unresolved items that need attention.
-- **Entities And Anchors**: names, files, and code identifiers for grounding.
-
-## Example Output
+## What The Capsule Looks Like
 
 ```markdown
 # Context Diamond Capsule
 
 - Strategy: `diamond-v1`
-- Source tokens: `719`
-- Capsule tokens: `188`
-- Compression ratio: `3.82x`
+- Source tokens: `535`
+- Capsule tokens: `315`
+- Compression ratio: `1.7x`
 
 ## Diamond Pulse
-- [user] Goal: create a public context compression toolkit for LLM workflows.
-- [assistant] Decision: use deterministic extraction before optional model plugins.
+- The strongest signals from the source.
 
 ## Rules And Constraints
-- [user] The system must be useful without API keys.
+- Requirements that should not be violated.
+
+## Decisions Already Made
+- Choices that should not be reopened accidentally.
+
+## Open Questions And Risks
+- Unresolved items that need attention.
 ```
 
-## Design Principles
+## Why This Over X
 
-- **Deterministic first**: no hidden network calls and no vendor lock-in.
-- **Budget-aware**: every facet receives a token budget.
-- **Duplicate-aware**: core facet sections avoid repeating the same shard.
-- **Measurable**: benchmark against deterministic head/tail clipping baselines.
-- **Integration-ready**: adapters for messages, documents, and tool payloads.
-- **Human-auditable**: extracted shards remain close to source wording.
-- **LLM-friendly**: the final capsule includes a rehydration prompt.
-- **Composable**: future vector, embedding, or model-backed extractors can plug in.
+Context Diamond is not trying to replace every prompt compressor, RAG compressor,
+or memory store. It is best at one job:
+
+> create auditable context capsules for LLM and coding-agent handoffs.
+
+Read the honest comparison in [docs/why-context-diamond.md](docs/why-context-diamond.md).
+
+## Features
+
+- **Offline by default**: no hidden network calls.
+- **Zero runtime dependencies**: install it into boring environments.
+- **OpenCode-ready**: ships a local stdio MCP server.
+- **Benchmarkable**: compare against deterministic clipping baselines.
+- **Auditable**: optional loss report shows omitted shards.
+- **Structured**: goals, rules, decisions, facts, state, risks, anchors.
+- **Composable**: CLI, Python API, JSON output, adapters, MCP.
+
+## Docs
+
+- [OpenCode integration](docs/opencode.md)
+- [Benchmarks](docs/benchmarks.md)
+- [Integrations](docs/integrations.md)
+- [Algorithm](docs/algorithm.md)
+- [Architecture](docs/architecture.md)
+- [Use cases](docs/use-cases.md)
+
+## Local Development
+
+```bash
+git clone https://github.com/RainCherb/context-diamond.git
+cd context-diamond
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -e ".[dev]"
+python -m pytest
+python -m ruff check .
+```
+
+On macOS or Linux, activate with `source .venv/bin/activate`.
 
 ## Roadmap
 
-- Optional embedding reranker for very large sources.
 - Larger public benchmark corpus with task-level answer quality checks.
-- Conversation adapters for Slack, GitHub issues, Linear, and Markdown logs.
-- Optional exact tokenizers for OpenAI, Anthropic, Gemini, and local models.
+- Optional embedding reranker for very large sources.
+- Exact tokenizer extras for OpenAI, Anthropic, Gemini, and local models.
+- More first-class agent adapters: GitHub issues, Linear, Slack, Markdown logs.
 - Streaming capsule updates for long-running coding agents.
 - PyPI release after the public API stabilizes.
 
-## Repository Layout
+## Star This If
 
-```text
-src/context_diamond/      library and CLI
-tests/                    unit and CLI tests
-docs/                     architecture and algorithm notes
-examples/                 sample transcript and API usage
-.github/workflows/        CI
-```
+- you lose context when switching between LLM tools
+- you want OpenCode agents to compress handoffs before continuing
+- you prefer inspectable local tools over another black-box summarizer
+- you like boring, deterministic software that saves expensive tokens
 
-## License
-
-MIT
+MIT licensed. Built to be small, honest, and useful.
