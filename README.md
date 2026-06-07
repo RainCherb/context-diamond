@@ -2,7 +2,7 @@
 
 Context Diamond is a deterministic context compression system for LLM workflows.
 It turns long chats, issue threads, notes, transcripts, and project logs into a
-small "context capsule" that preserves the pieces a model needs most:
+small, auditable "context capsule" that preserves the pieces a model needs most:
 
 - intent and success criteria
 - hard rules and constraints
@@ -67,6 +67,12 @@ Write JSON for automation:
 ctxd examples/chat_transcript.md --format json --budget 450 --output capsule.json
 ```
 
+Include an audit trail of omitted shards:
+
+```bash
+ctxd examples/chat_transcript.md --format json --loss-report
+```
+
 Read from stdin:
 
 ```bash
@@ -104,6 +110,34 @@ capsule = compressor.compress(text)
 
 print(capsule.to_markdown())
 ```
+
+## Benchmarks
+
+Compare a capsule against deterministic clipping baselines:
+
+```bash
+context-diamond-bench examples/long_handoff.md --budget 320
+```
+
+The benchmark reports estimated token reduction plus constraint, decision, risk,
+and code/path signal recall. See [docs/benchmarks.md](docs/benchmarks.md).
+
+## Integrations
+
+Dependency-free adapters are available for chat messages, document objects, and
+tool/MCP payloads:
+
+```python
+from context_diamond import compress_documents, compress_messages, compress_tool_payload
+```
+
+See [docs/integrations.md](docs/integrations.md).
+
+## Why This Over X
+
+Context Diamond is best understood as an auditable handoff capsule, not a
+universal replacement for prompt compressors, RAG, or long-term memory systems.
+See [docs/why-context-diamond.md](docs/why-context-diamond.md).
 
 ## The Diamond Capsule
 
@@ -144,6 +178,8 @@ Facets:
 - **Deterministic first**: no hidden network calls and no vendor lock-in.
 - **Budget-aware**: every facet receives a token budget.
 - **Duplicate-aware**: core facet sections avoid repeating the same shard.
+- **Measurable**: benchmark against deterministic head/tail clipping baselines.
+- **Integration-ready**: adapters for messages, documents, and tool payloads.
 - **Human-auditable**: extracted shards remain close to source wording.
 - **LLM-friendly**: the final capsule includes a rehydration prompt.
 - **Composable**: future vector, embedding, or model-backed extractors can plug in.
@@ -151,9 +187,9 @@ Facets:
 ## Roadmap
 
 - Optional embedding reranker for very large sources.
-- Loss reports that show which shards were excluded and why.
+- Larger public benchmark corpus with task-level answer quality checks.
 - Conversation adapters for Slack, GitHub issues, Linear, and Markdown logs.
-- Tokenizer profiles for OpenAI, Anthropic, Gemini, and local models.
+- Optional exact tokenizers for OpenAI, Anthropic, Gemini, and local models.
 - Streaming capsule updates for long-running coding agents.
 - PyPI release after the public API stabilizes.
 

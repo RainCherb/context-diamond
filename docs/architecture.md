@@ -8,6 +8,7 @@ source text/messages
   -> facet detection
   -> importance scoring
   -> budgeted facet selection
+  -> optional loss report
   -> capsule rendering
 ```
 
@@ -16,6 +17,9 @@ source text/messages
 - `tokenizer.py` estimates local token budgets and splits source text.
 - `extractors.py` assigns each shard to a facet and extracts entities.
 - `compressor.py` selects shards and creates a `ContextCapsule`.
+- `benchmark.py` compares capsules with deterministic clipping baselines.
+- `integrations.py` adapts chat messages, documents, and tool payloads.
+- `profiles.py` provides conservative tokenizer estimate profiles.
 - `model.py` contains dataclasses for messages, shards, sections, and capsules.
 - `cli.py` exposes the package as `context-diamond` and `ctxd`.
 
@@ -36,5 +40,6 @@ The current implementation can be extended in three places:
 - tokenizer profiles for vendor-specific token counting
 - scoring rules for domain-specific importance
 - rerankers for optional embedding or LLM-backed selection
+- adapters for additional agent runtimes and issue trackers
 
 These additions should preserve the current no-network default.

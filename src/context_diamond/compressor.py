@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .extractors import FACET_TITLES, create_shards, extract_entities, normalize_messages
-from .model import CapsuleSection, ContextCapsule, Message, SentenceShard
+from .model import CapsuleSection, ContextCapsule, LossReport, Message, SentenceShard
+from .profiles import estimate_profile_tokens, list_tokenizer_profiles
 from .tokenizer import estimate_tokens, trim_to_token_budget
 
 
@@ -17,6 +18,8 @@ class CompressionConfig:
     title: str = "Context Diamond Capsule"
     max_items_per_facet: int = 6
     include_rehydration_prompt: bool = True
+    include_loss_report: bool = False
+    tokenizer_profile: str = "generic"
     facet_weights: dict[str, float] = field(
         default_factory=lambda: {
             "pulse": 0.12,
@@ -39,6 +42,10 @@ class CompressionConfig:
             raise ValueError(msg)
         if any(weight < 0 for weight in self.facet_weights.values()):
             msg = "facet weights cannot be negative"
+            raise ValueError(msg)
+        if self.tokenizer_profile not in list_tokenizer_profiles():
+            known = ", ".join(list_tokenizer_profiles())
+            msg = f"tokenizer_profile must be one of: {known}"
             raise ValueError(msg)
 
 
@@ -74,7 +81,30 @@ class ContextDiamondCompressor:
             },
         )
 
-        return self._fit_capsule(capsule)
+        fitted = self._fit_capsule(capsule)
+        metadata = fitted.metadata | {
+            "tokenizer_profile": self.config.tokenizer_profile,
+            "profile_source_tokens": estimate_profile_tokens(
+                source_text,
+                self.config.tokenizer_profile,
+            ),
+            "profile_capsule_tokens": estimate_profile_tokens(
+                fitted.to_markdown(),
+                self.config.tokenizer_profile,
+            ),
+        }
+        if self.config.include_loss_report:
+            metadata["loss_report"] = self._loss_report(shards, fitted).to_dict()
+
+        return ContextCapsule(
+            title=fitted.title,
+            sections=fitted.sections,
+            source_tokens=fitted.source_tokens,
+            capsule_tokens=fitted.capsule_tokens,
+            source_sha256=fitted.source_sha256,
+            strategy=fitted.strategy,
+            metadata=metadata,
+        )
 
     def _build_sections(self, shards: list[SentenceShard]) -> list[CapsuleSection]:
         selected_sections: list[CapsuleSection] = []
@@ -197,6 +227,41 @@ class ContextDiamondCompressor:
             source_sha256=capsule.source_sha256,
             strategy=capsule.strategy,
             metadata=capsule.metadata | {"fitted_to_budget": True},
+        )
+
+    def _loss_report(self, shards: list[SentenceShard], capsule: ContextCapsule) -> LossReport:
+        kept_keys = {
+            _item_key(item)
+            for section in capsule.sections
+            if section.title != FACET_TITLES["pulse"]
+            for item in section.items
+        }
+        kept_by_facet: dict[str, int] = {}
+        omitted_by_facet: dict[str, int] = {}
+        omitted_preview: list[dict[str, object]] = []
+
+        for shard in shards:
+            key = _item_key(self._format_item(shard))
+            if key in kept_keys:
+                kept_by_facet[shard.facet] = kept_by_facet.get(shard.facet, 0) + 1
+            else:
+                omitted_by_facet[shard.facet] = omitted_by_facet.get(shard.facet, 0) + 1
+                if len(omitted_preview) < 10:
+                    omitted_preview.append(
+                        {
+                            "facet": shard.facet,
+                            "score": shard.score,
+                            "text": shard.text,
+                            "reasons": list(shard.reasons),
+                        }
+                    )
+
+        return LossReport(
+            kept_count=sum(kept_by_facet.values()),
+            omitted_count=sum(omitted_by_facet.values()),
+            kept_by_facet=kept_by_facet,
+            omitted_by_facet=omitted_by_facet,
+            omitted_preview=omitted_preview,
         )
 
 

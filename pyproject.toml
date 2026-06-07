@@ -15,6 +15,8 @@ keywords = [
   "context-compression",
   "tokens",
   "prompt-engineering",
+  "ai-agents",
+  "benchmarking",
   "ai",
 ]
 classifiers = [
@@ -40,6 +42,8 @@ dev = [
 [project.scripts]
 context-diamond = "context_diamond.cli:main"
 ctxd = "context_diamond.cli:main"
+context-diamond-bench = "context_diamond.benchmark:main"
+ctxd-bench = "context_diamond.benchmark:main"
 
 [project.urls]
 Homepage = "https://github.com/RainCherb/context-diamond"

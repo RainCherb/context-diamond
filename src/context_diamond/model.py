@@ -108,3 +108,23 @@ class ContextCapsule:
             lines.append("")
 
         return "\n".join(lines).strip() + "\n"
+
+
+@dataclass(frozen=True)
+class LossReport:
+    """Audit data describing what compression kept and omitted."""
+
+    kept_count: int
+    omitted_count: int
+    kept_by_facet: dict[str, int]
+    omitted_by_facet: dict[str, int]
+    omitted_preview: list[dict[str, Any]]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kept_count": self.kept_count,
+            "omitted_count": self.omitted_count,
+            "kept_by_facet": self.kept_by_facet,
+            "omitted_by_facet": self.omitted_by_facet,
+            "omitted_preview": self.omitted_preview,
+        }

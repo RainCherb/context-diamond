@@ -57,3 +57,14 @@ def test_capsule_does_not_repeat_items_across_sections() -> None:
 def test_config_rejects_invalid_budget() -> None:
     with pytest.raises(ValueError, match="token_budget"):
         CompressionConfig(token_budget=0)
+
+
+def test_loss_report_can_be_added_to_metadata() -> None:
+    capsule = ContextDiamondCompressor(
+        CompressionConfig(token_budget=180, include_loss_report=True)
+    ).compress(SOURCE)
+
+    report = capsule.metadata["loss_report"]
+    assert report["kept_count"] > 0
+    assert "omitted_by_facet" in report
+    assert capsule.metadata["tokenizer_profile"] == "generic"

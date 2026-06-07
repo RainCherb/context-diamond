@@ -3,6 +3,10 @@
 ## Unreleased
 
 - Added CLI `--title` support for named capsules.
+- Added CLI `--loss-report` and tokenizer profile metadata.
+- Added `context-diamond-bench` for deterministic benchmark comparisons.
+- Added dependency-free integration helpers for messages, documents, and tool payloads.
+- Added docs for benchmarks, integrations, and "Why Context Diamond".
 - Added validation for invalid budgets and malformed message-list input.
 - Prevented duplicate capsule items across sections.
 - Omitted empty sections from generated capsules.

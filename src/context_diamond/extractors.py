@@ -42,6 +42,7 @@ FACET_KEYWORDS = {
         "limit",
         "required",
         "without",
+        "avoid",
     ),
     "decisions": (
         "decided",
@@ -167,6 +168,8 @@ def detect_facet(text: str) -> str:
         return "state"
     if without_speaker.startswith(("open question:", "open risk:", "risk:", "blocked:")):
         return "open_loops"
+    if without_speaker.startswith(("final requirement:", "requirement:")):
+        return "constraints"
 
     if "?" in text:
         return "open_loops"
@@ -189,12 +192,16 @@ def score_sentence(text: str, *, index: int, total: int, role: str) -> float:
     lowered = text.lower()
     score = 1.0
 
-    if role.lower() in {"user", "customer", "owner"}:
+    if role.lower() in {"user", "customer", "owner"} or lowered.startswith("user:"):
         score += 0.45
+    if lowered.startswith("noise log"):
+        score -= 0.75
     if CODE_OR_PATH_RE.search(text):
         score += 0.4
     if any(marker in lowered for marker in ("must", "never", "important", "required")):
         score += 0.55
+    if any(marker in lowered for marker in ("must not", "do not", "cannot", "final requirement")):
+        score += 0.35
     if any(marker in lowered for marker in ("decided", "decision", "will", "chosen")):
         score += 0.35
     if "?" in text:
@@ -216,11 +223,11 @@ def score_reasons(text: str) -> list[str]:
     reasons: list[str] = []
     if CODE_OR_PATH_RE.search(text):
         reasons.append("code-or-path")
-    if any(marker in lowered for marker in ("must", "never", "required")):
+    if any(marker in lowered for marker in ("must", "never", "required", "must not", "do not")):
         reasons.append("constraint")
     if any(marker in lowered for marker in ("decided", "decision", "chosen")):
         reasons.append("decision")
-    if "?" in text:
+    if any(marker in lowered for marker in ("risk", "question", "blocked", "unknown")):
         reasons.append("question")
     return reasons
 

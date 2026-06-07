@@ -15,6 +15,12 @@ attached to a follow-up prompt.
 Use JSON capsules in pipelines that need repeatable context budgets before LLM
 calls.
 
+## Evaluation And Regression Checks
+
+Use `context-diamond-bench` in CI to make sure future scoring changes do not
+drop constraint, decision, risk, or code/path signals from representative
+handoff corpora.
+
 ## Knowledge Handoffs
 
 Create short capsules from meeting notes, design docs, incident reviews, or

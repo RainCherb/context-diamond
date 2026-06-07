@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import TextIO
 
 from .compressor import CompressionConfig, ContextDiamondCompressor
+from .profiles import list_tokenizer_profiles
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -55,6 +56,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not append the rehydration prompt section.",
     )
+    parser.add_argument(
+        "--loss-report",
+        action="store_true",
+        help="Include kept/omitted shard audit data in JSON metadata.",
+    )
+    parser.add_argument(
+        "--tokenizer-profile",
+        choices=list_tokenizer_profiles(),
+        default="generic",
+        help="Tokenizer estimate profile for metadata. Default: generic.",
+    )
     return parser
 
 
@@ -72,6 +84,8 @@ def main(argv: list[str] | None = None, stdout: TextIO | None = None) -> int:
                 token_budget=args.budget,
                 title=args.title,
                 include_rehydration_prompt=not args.no_rehydration_prompt,
+                include_loss_report=args.loss_report,
+                tokenizer_profile=args.tokenizer_profile,
             )
         )
         capsule = compressor.compress(source)

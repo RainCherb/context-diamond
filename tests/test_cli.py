@@ -49,3 +49,13 @@ def test_cli_reports_invalid_messages_json_shape(tmp_path: Path, capsys) -> None
 
     captured = capsys.readouterr()
     assert "input must be text or a list of messages" in captured.err
+
+
+def test_cli_can_emit_loss_report_json(tmp_path: Path, capsys) -> None:
+    source = tmp_path / "source.md"
+    source.write_text("Goal: save tokens. Decision: keep audit data.", encoding="utf-8")
+
+    assert main([str(source), "--format", "json", "--loss-report"]) == 0
+    captured = capsys.readouterr()
+    assert '"loss_report"' in captured.out
+    assert '"profile_source_tokens"' in captured.out

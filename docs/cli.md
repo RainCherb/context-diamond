@@ -19,6 +19,8 @@ ctxd INPUT
 - `--output`, `-o`: output path. If omitted, prints to stdout.
 - `--messages-json`: parse input as a JSON message list.
 - `--no-rehydration-prompt`: omit the final rehydration instructions.
+- `--loss-report`: include kept/omitted shard audit data in JSON metadata.
+- `--tokenizer-profile`: add profile-based token estimates to metadata.
 
 ## Examples
 
@@ -26,6 +28,7 @@ ctxd INPUT
 context-diamond examples/chat_transcript.md --budget 500
 context-diamond examples/chat_transcript.md --title "Sprint Handoff"
 context-diamond examples/chat_transcript.md --format json --output capsule.json
+context-diamond examples/chat_transcript.md --format json --loss-report
 ctxd - --budget 300 < notes.md
 ```
 
