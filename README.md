@@ -133,6 +133,25 @@ from context_diamond import compress_documents, compress_messages, compress_tool
 
 See [docs/integrations.md](docs/integrations.md).
 
+## OpenCode
+
+Context Diamond can run as a local MCP server for OpenCode:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "context_diamond": {
+      "type": "local",
+      "command": ["context-diamond-mcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
+See [docs/opencode.md](docs/opencode.md).
+
 ## Why This Over X
 
 Context Diamond is best understood as an auditable handoff capsule, not a

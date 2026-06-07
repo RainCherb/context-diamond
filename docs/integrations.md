@@ -46,3 +46,14 @@ capsule = compress_tool_payload(
 
 These helpers intentionally return normal `ContextCapsule` objects, so the same
 Markdown and JSON rendering APIs apply everywhere.
+
+## OpenCode MCP
+
+For OpenCode, use the local MCP server entrypoint:
+
+```bash
+context-diamond-mcp
+```
+
+See [opencode.md](opencode.md) for the `opencode.json` configuration and tool
+argument reference.

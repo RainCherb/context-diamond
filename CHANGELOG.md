@@ -7,6 +7,7 @@
 - Clarified budget metadata with `budget_scope` and `profile_rendered_tokens`.
 - Added `context-diamond-bench` for deterministic benchmark comparisons.
 - Added dependency-free integration helpers for messages, documents, and tool payloads.
+- Added a zero-dependency stdio MCP server for OpenCode integration.
 - Added docs for benchmarks, integrations, and "Why Context Diamond".
 - Added validation for invalid budgets and malformed message-list input.
 - Prevented duplicate capsule items across sections.

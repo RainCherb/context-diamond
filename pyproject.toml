@@ -44,6 +44,8 @@ context-diamond = "context_diamond.cli:main"
 ctxd = "context_diamond.cli:main"
 context-diamond-bench = "context_diamond.benchmark:main"
 ctxd-bench = "context_diamond.benchmark:main"
+context-diamond-mcp = "context_diamond.mcp_server:main"
+ctxd-mcp = "context_diamond.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/RainCherb/context-diamond"

@@ -19,6 +19,7 @@ source text/messages
 - `compressor.py` selects shards and creates a `ContextCapsule`.
 - `benchmark.py` compares capsules with deterministic clipping baselines.
 - `integrations.py` adapts chat messages, documents, and tool payloads.
+- `mcp_server.py` exposes compression and benchmark tools over stdio MCP.
 - `profiles.py` provides conservative tokenizer estimate profiles.
 - `model.py` contains dataclasses for messages, shards, sections, and capsules.
 - `cli.py` exposes the package as `context-diamond` and `ctxd`.

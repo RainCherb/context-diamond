@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "context_diamond": {
+      "type": "local",
+      "command": ["context-diamond-mcp"],
+      "enabled": true,
+      "timeout": 10000
+    }
+  }
+}
