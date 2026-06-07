@@ -31,10 +31,10 @@ for a human to audit.
 ## Install
 
 ```bash
-pip install context-diamond
+pip install git+https://github.com/RainCherb/context-diamond.git
 ```
 
-For local development:
+For editable local development:
 
 ```bash
 git clone https://github.com/RainCherb/context-diamond.git
@@ -42,7 +42,7 @@ cd context-diamond
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -e ".[dev]"
-pytest
+python -m pytest
 ```
 
 On macOS or Linux, activate with `source .venv/bin/activate`.
@@ -53,6 +53,12 @@ Compress a markdown transcript into a capsule:
 
 ```bash
 context-diamond examples/chat_transcript.md --budget 500 --output capsule.md
+```
+
+Give a capsule a handoff-specific title:
+
+```bash
+context-diamond examples/chat_transcript.md --title "Sprint Handoff" --budget 500
 ```
 
 Write JSON for automation:
@@ -137,6 +143,7 @@ Facets:
 
 - **Deterministic first**: no hidden network calls and no vendor lock-in.
 - **Budget-aware**: every facet receives a token budget.
+- **Duplicate-aware**: core facet sections avoid repeating the same shard.
 - **Human-auditable**: extracted shards remain close to source wording.
 - **LLM-friendly**: the final capsule includes a rehydration prompt.
 - **Composable**: future vector, embedding, or model-backed extractors can plug in.
@@ -148,6 +155,7 @@ Facets:
 - Conversation adapters for Slack, GitHub issues, Linear, and Markdown logs.
 - Tokenizer profiles for OpenAI, Anthropic, Gemini, and local models.
 - Streaming capsule updates for long-running coding agents.
+- PyPI release after the public API stabilizes.
 
 ## Repository Layout
 

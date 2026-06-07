@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from context_diamond.cli import main
 
 
@@ -19,3 +21,31 @@ def test_cli_prints_json(tmp_path: Path, capsys) -> None:
     assert main([str(source), "--format", "json", "--budget", "100"]) == 0
     captured = capsys.readouterr()
     assert '"strategy": "diamond-v1"' in captured.out
+
+
+def test_cli_allows_custom_title(tmp_path: Path, capsys) -> None:
+    source = tmp_path / "source.md"
+    source.write_text("Goal: make a named capsule.", encoding="utf-8")
+
+    assert main([str(source), "--title", "Sprint Handoff"]) == 0
+    captured = capsys.readouterr()
+    assert "# Sprint Handoff" in captured.out
+
+
+def test_cli_rejects_non_positive_budget(tmp_path: Path) -> None:
+    source = tmp_path / "source.md"
+    source.write_text("Goal: save tokens.", encoding="utf-8")
+
+    with pytest.raises(SystemExit):
+        main([str(source), "--budget", "0"])
+
+
+def test_cli_reports_invalid_messages_json_shape(tmp_path: Path, capsys) -> None:
+    source = tmp_path / "messages.json"
+    source.write_text('{"role": "user", "content": "not a list"}', encoding="utf-8")
+
+    with pytest.raises(SystemExit):
+        main([str(source), "--messages-json"])
+
+    captured = capsys.readouterr()
+    assert "input must be text or a list of messages" in captured.err

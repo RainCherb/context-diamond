@@ -23,9 +23,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-b",
         "--budget",
-        type=int,
+        type=_positive_int,
         default=800,
         help="Target capsule token budget. Default: 800.",
+    )
+    parser.add_argument(
+        "-t",
+        "--title",
+        default="Context Diamond Capsule",
+        help="Capsule title. Default: Context Diamond Capsule.",
     )
     parser.add_argument(
         "-f",
@@ -57,16 +63,21 @@ def main(argv: list[str] | None = None, stdout: TextIO | None = None) -> int:
     args = parser.parse_args(argv)
     stream = stdout or sys.stdout
 
-    raw = _read_input(args.input)
-    source = json.loads(raw) if args.messages_json else raw
+    try:
+        raw = _read_input(args.input)
+        source = json.loads(raw) if args.messages_json else raw
 
-    compressor = ContextDiamondCompressor(
-        CompressionConfig(
-            token_budget=args.budget,
-            include_rehydration_prompt=not args.no_rehydration_prompt,
+        compressor = ContextDiamondCompressor(
+            CompressionConfig(
+                token_budget=args.budget,
+                title=args.title,
+                include_rehydration_prompt=not args.no_rehydration_prompt,
+            )
         )
-    )
-    capsule = compressor.compress(source)
+        capsule = compressor.compress(source)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as error:
+        parser.error(str(error))
+
     rendered = capsule.to_json() if args.format == "json" else capsule.to_markdown()
 
     if args.output:
@@ -81,3 +92,11 @@ def _read_input(input_path: str) -> str:
     if input_path == "-":
         return sys.stdin.read()
     return Path(input_path).read_text(encoding="utf-8")
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        msg = "must be greater than zero"
+        raise argparse.ArgumentTypeError(msg)
+    return parsed

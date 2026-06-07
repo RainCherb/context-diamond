@@ -101,7 +101,9 @@ def _split_wrapped_block(block: str) -> list[str]:
         if is_bullet:
             flush()
             shards.extend(_split_inline(raw.strip(" \t-*")))
-        elif is_speaker and buffer:
+        elif (is_speaker and buffer) or (
+            buffer and _looks_like_new_sentence_line(buffer[-1], raw)
+        ):
             flush()
             buffer.append(raw)
         else:
@@ -109,3 +111,7 @@ def _split_wrapped_block(block: str) -> list[str]:
 
     flush()
     return shards
+
+
+def _looks_like_new_sentence_line(previous: str, current: str) -> bool:
+    return previous.endswith((".", "?", "!")) and current[:1].isupper()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from typing import Any
 
 from .model import Message, SentenceShard
 from .tokenizer import estimate_tokens, split_sentences
@@ -83,24 +84,55 @@ ENTITY_RE = re.compile(r"\b[A-Z][A-Za-z0-9]*(?:[A-Z][A-Za-z0-9]*)?\b")
 
 
 def normalize_messages(
-    text_or_messages: str | list[Message] | list[dict[str, str]],
+    text_or_messages: str | list[Message] | list[dict[str, Any]],
 ) -> list[Message]:
     if isinstance(text_or_messages, str):
         return [Message(role="source", content=text_or_messages)]
+    if not isinstance(text_or_messages, list):
+        msg = "input must be text or a list of messages"
+        raise TypeError(msg)
 
     messages: list[Message] = []
-    for item in text_or_messages:
+    for index, item in enumerate(text_or_messages):
         if isinstance(item, Message):
+            _validate_message(item, index)
             messages.append(item)
         else:
+            if not isinstance(item, dict):
+                msg = f"message {index} must be an object with role/content fields"
+                raise TypeError(msg)
+            content = item.get("content", "")
+            role = item.get("role", "source")
+            name = item.get("name")
+            if not isinstance(content, str):
+                msg = f"message {index} content must be a string"
+                raise TypeError(msg)
+            if not isinstance(role, str):
+                msg = f"message {index} role must be a string"
+                raise TypeError(msg)
+            if name is not None and not isinstance(name, str):
+                msg = f"message {index} name must be a string when provided"
+                raise TypeError(msg)
             messages.append(
                 Message(
-                    role=item.get("role", "source"),
-                    content=item.get("content", ""),
-                    name=item.get("name"),
+                    role=role,
+                    content=content,
+                    name=name,
                 )
             )
     return messages
+
+
+def _validate_message(message: Message, index: int) -> None:
+    if not isinstance(message.role, str):
+        msg = f"message {index} role must be a string"
+        raise TypeError(msg)
+    if not isinstance(message.content, str):
+        msg = f"message {index} content must be a string"
+        raise TypeError(msg)
+    if message.name is not None and not isinstance(message.name, str):
+        msg = f"message {index} name must be a string when provided"
+        raise TypeError(msg)
 
 
 def create_shards(messages: list[Message]) -> list[SentenceShard]:

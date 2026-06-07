@@ -30,6 +30,17 @@ class CompressionConfig:
         }
     )
 
+    def __post_init__(self) -> None:
+        if self.token_budget <= 0:
+            msg = "token_budget must be greater than zero"
+            raise ValueError(msg)
+        if self.max_items_per_facet <= 0:
+            msg = "max_items_per_facet must be greater than zero"
+            raise ValueError(msg)
+        if any(weight < 0 for weight in self.facet_weights.values()):
+            msg = "facet weights cannot be negative"
+            raise ValueError(msg)
+
 
 class ContextDiamondCompressor:
     """Builds deterministic, budget-aware LLM context capsules."""
@@ -66,10 +77,23 @@ class ContextDiamondCompressor:
         return self._fit_capsule(capsule)
 
     def _build_sections(self, shards: list[SentenceShard]) -> list[CapsuleSection]:
-        selected_sections = [self._pulse_section(shards)]
+        selected_sections: list[CapsuleSection] = []
+        seen_items: set[str] = set()
+
+        pulse = self._pulse_section(shards)
+        if pulse.items:
+            selected_sections.append(pulse)
+
         for facet in ("goal", "constraints", "decisions", "facts", "state", "open_loops"):
-            selected_sections.append(self._facet_section(shards, facet))
-        selected_sections.append(self._glossary_section(shards))
+            section = self._facet_section(shards, facet, excluded_items=seen_items)
+            if section.items:
+                selected_sections.append(section)
+                seen_items.update(_item_key(item) for item in section.items)
+
+        glossary = self._glossary_section(shards)
+        if glossary.items:
+            selected_sections.append(glossary)
+
         return selected_sections
 
     def _pulse_section(self, shards: list[SentenceShard]) -> CapsuleSection:
@@ -79,7 +103,13 @@ class ContextDiamondCompressor:
             items=[self._format_item(shard) for shard in top],
         )
 
-    def _facet_section(self, shards: list[SentenceShard], facet: str) -> CapsuleSection:
+    def _facet_section(
+        self,
+        shards: list[SentenceShard],
+        facet: str,
+        *,
+        excluded_items: set[str],
+    ) -> CapsuleSection:
         budget = self._facet_budget(facet)
         candidates = [shard for shard in shards if shard.facet == facet]
         candidates.sort(key=lambda shard: (shard.score, shard.index), reverse=True)
@@ -90,8 +120,8 @@ class ContextDiamondCompressor:
 
         for shard in candidates:
             item = self._format_item(shard)
-            key = item.lower()
-            if key in seen:
+            key = _item_key(item)
+            if key in excluded_items or key in seen:
                 continue
             item_tokens = estimate_tokens(item)
             if items and used + item_tokens > budget:
@@ -155,8 +185,9 @@ class ContextDiamondCompressor:
                     available = 0
 
             fitted = CapsuleSection(title=section.title, items=items)
-            fitted_sections.append(fitted)
-            running_tokens += fitted.token_count
+            if fitted.items:
+                fitted_sections.append(fitted)
+                running_tokens += fitted.token_count
 
         return ContextCapsule(
             title=capsule.title,
@@ -183,3 +214,7 @@ def _strict_trim(text: str, budget: int) -> str:
             return clipped
         trim_budget -= 1
     return ""
+
+
+def _item_key(item: str) -> str:
+    return " ".join(item.lower().split())

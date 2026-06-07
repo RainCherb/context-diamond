@@ -19,6 +19,9 @@ source text/messages
 - `model.py` contains dataclasses for messages, shards, sections, and capsules.
 - `cli.py` exposes the package as `context-diamond` and `ctxd`.
 
+The default CLI and library path have no runtime dependencies outside the Python
+standard library.
+
 ## Why Deterministic Extraction
 
 The default compressor is designed to run before any LLM call. That means it

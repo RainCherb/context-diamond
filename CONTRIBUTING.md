@@ -8,8 +8,8 @@ Thanks for improving Context Diamond.
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -e ".[dev]"
-pytest
-ruff check .
+python -m pytest
+python -m ruff check .
 ```
 
 On macOS or Linux, use `source .venv/bin/activate`.
