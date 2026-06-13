@@ -12,6 +12,13 @@
 - **Type safety**: Added `mypy` strict mode and full type coverage.
 - **Version bump**: `0.6.3` → `0.7.0`.
 
+### MCP Server Improvements
+- **New tools**: `explain_text`, `repo_capsule`, `batch_compress`, `list_templates`, `list_tokenizers`, `get_template_info`.
+- **Streaming session management**: `streaming_add`, `streaming_get`, `streaming_reset` for incremental capsule builds over MCP.
+- **Template support**: All compression tools support domain-specific templates via the `template` argument.
+- **Progress notifications**: `batch_compress` sends progress updates during long-running operations.
+- **Enhanced documentation**: Updated `docs/opencode.md` with complete tool reference and examples.
+
 ## 0.6.3 - 2026-06-14
 
 - Reworked README and repository positioning for a clearer GitHub landing page.
