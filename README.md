@@ -1,4 +1,4 @@
-# Context Diamond v0.6.3
+# Context Diamond v0.7.0
 
 > Stop pasting the same messy context into every LLM. Turn chats, logs, issues,
 > agent state, and docs into small, auditable context capsules.
