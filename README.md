@@ -1,4 +1,4 @@
-# Context Diamond
+# Context Diamond v0.6.3
 
 > Stop pasting the same messy context into every LLM. Turn chats, logs, issues,
 > agent state, and docs into small, auditable context capsules.
@@ -9,7 +9,7 @@
 [![No API Keys](https://img.shields.io/badge/API%20keys-not%20required-brightgreen.svg)](docs/architecture.md)
 [![OpenCode MCP](https://img.shields.io/badge/OpenCode-MCP%20ready-purple.svg)](docs/opencode.md)
 
-Context Diamond is a deterministic context compression and handoff toolkit for
+Context Diamond v0.6.3 is a deterministic context compression and handoff toolkit for
 LLM agents.
 It extracts the things models keep losing in long conversations:
 
