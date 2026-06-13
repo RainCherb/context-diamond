@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from typing import Any
 
 from .model import Message, SentenceShard
 from .tokenizer import estimate_tokens, split_sentences
@@ -129,7 +128,7 @@ ENTITY_RE = re.compile(r"\b[A-Z][A-Za-z0-9]*(?:[A-Z][A-Za-z0-9]*)?\b")
 
 
 def normalize_messages(
-    text_or_messages: str | list[Message] | list[dict[str, Any]],
+    text_or_messages: object,
 ) -> list[Message]:
     if isinstance(text_or_messages, str):
         return [Message(role="source", content=text_or_messages)]
@@ -168,14 +167,15 @@ def normalize_messages(
     return messages
 
 
-def _validate_message(message: Message, index: int) -> None:
-    if not isinstance(message.role, str):
+def _validate_message(message: object, index: int) -> None:
+    if not hasattr(message, "role") or not isinstance(getattr(message, "role", None), str):
         msg = f"message {index} role must be a string"
         raise TypeError(msg)
-    if not isinstance(message.content, str):
+    if not hasattr(message, "content") or not isinstance(getattr(message, "content", None), str):
         msg = f"message {index} content must be a string"
         raise TypeError(msg)
-    if message.name is not None and not isinstance(message.name, str):
+    name = getattr(message, "name", None)
+    if name is not None and not isinstance(name, str):
         msg = f"message {index} name must be a string when provided"
         raise TypeError(msg)
 

@@ -8,15 +8,21 @@ from .plugins import clear_registered_plugins, register_plugin, unregister_plugi
 from .profiles import TokenizerProfile, estimate_profile_tokens, list_tokenizer_profiles
 from .repo import build_repo_context, compress_repo
 from .rerankers import EmbeddingReranker
+from .streaming import StreamingCompressor
+from .templates import CapsuleTemplate, get_template, list_templates
+from .tokenizers import BaseTokenizer, get_tokenizer, list_tokenizers
 
 __all__ = [
+    "BaseTokenizer",
     "CapsuleSection",
+    "CapsuleTemplate",
     "CompressionConfig",
     "ContextCapsule",
     "ContextDiamondCompressor",
     "EmbeddingReranker",
     "LossReport",
     "Message",
+    "StreamingCompressor",
     "build_repo_context",
     "compress_text",
     "compress_documents",
@@ -25,6 +31,10 @@ __all__ = [
     "compress_tool_payload",
     "clear_registered_plugins",
     "diff_capsules",
+    "get_template",
+    "get_tokenizer",
+    "list_templates",
+    "list_tokenizers",
     "merge_capsules",
     "register_plugin",
     "TokenizerProfile",
@@ -33,4 +43,4 @@ __all__ = [
     "unregister_plugin",
 ]
 
-__version__ = "0.6.3"
+__version__ = "0.7.0"

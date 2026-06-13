@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.7.0 - 2026-06-14
+
+### Core Improvements
+- **Precise tokenizer adapters**: `BaseTokenizer` protocol with optional `tiktoken`, `anthropic`, and `transformers` implementations.
+- **Template engine**: Domain-specific presets (`coding`, `support`, `research`, `incident`) with tuned facet weights.
+- **Streaming capsule updates**: `StreamingCompressor` for incremental context builds without full rebuilds.
+- **Batch processing CLI**: `ctxd batch` command for processing multiple files at once.
+- **Type safety**: Added `mypy` strict mode and full type coverage.
+- **Version bump**: `0.6.3` → `0.7.0`.
+
 ## 0.6.3 - 2026-06-14
 
 - Reworked README and repository positioning for a clearer GitHub landing page.

@@ -12,8 +12,10 @@ from .capsules import diff_capsules, load_capsule_json, merge_capsules, render_c
 from .compressor import CompressionConfig, ContextDiamondCompressor
 from .profiles import list_tokenizer_profiles
 from .repo import compress_repo
+from .templates import get_template, list_templates
+from .tokenizers import list_tokenizers
 
-COMMANDS = {"compress", "explain", "repo", "diff", "merge"}
+COMMANDS = {"compress", "explain", "repo", "diff", "merge", "batch"}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -71,6 +73,18 @@ def build_parser() -> argparse.ArgumentParser:
         default="generic",
         help="Tokenizer estimate profile for metadata. Default: generic.",
     )
+    parser.add_argument(
+        "--template",
+        choices=list_templates(),
+        default="default",
+        help="Domain-specific capsule template. Default: default.",
+    )
+    parser.add_argument(
+        "--tokenizer",
+        choices=list_tokenizers(),
+        default="generic",
+        help="Precise tokenizer to use (optional extras may be required). Default: generic.",
+    )
     return parser
 
 
@@ -87,6 +101,8 @@ def main(argv: list[str] | None = None, stdout: TextIO | None = None) -> int:
         return _main_diff(args_list, stdout)
     if command == "merge":
         return _main_merge(args_list, stdout)
+    if command == "batch":
+        return _main_batch(args_list, stdout)
     raise AssertionError(f"unhandled command: {command}")
 
 
@@ -99,15 +115,15 @@ def _main_compress(argv: list[str] | None = None, stdout: TextIO | None = None) 
         raw = _read_input(args.input)
         source = json.loads(raw) if args.messages_json else raw
 
-        compressor = ContextDiamondCompressor(
-            CompressionConfig(
-                token_budget=args.budget,
-                title=args.title,
-                include_rehydration_prompt=not args.no_rehydration_prompt,
-                include_loss_report=args.loss_report,
-                tokenizer_profile=args.tokenizer_profile,
-            )
-        )
+        template = get_template(args.template)
+        config_kwargs = template.to_config_kwargs(token_budget=args.budget)
+        config_kwargs["title"] = args.title
+        config_kwargs["include_rehydration_prompt"] = not args.no_rehydration_prompt
+        config_kwargs["include_loss_report"] = args.loss_report
+        config_kwargs["tokenizer_profile"] = args.tokenizer_profile
+        config = CompressionConfig(**config_kwargs)
+
+        compressor = ContextDiamondCompressor(config)
         capsule = compressor.compress(source)
     except (OSError, json.JSONDecodeError, TypeError, ValueError) as error:
         parser.error(str(error))
@@ -255,6 +271,81 @@ def _main_merge(argv: list[str] | None = None, stdout: TextIO | None = None) -> 
 
     rendered = capsule.to_json() if args.format == "json" else capsule.to_markdown()
     _write_output(rendered, args.output, stdout)
+    return 0
+
+
+def _main_batch(argv: list[str] | None = None, stdout: TextIO | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="context-diamond batch",
+        description="Batch-process multiple files into capsules.",
+    )
+    parser.add_argument(
+        "inputs", nargs="+", help="Input text or markdown files (glob patterns supported)."
+    )
+    parser.add_argument(
+        "-b", "--budget", type=_positive_int, default=800, help="Token budget per file."
+    )
+    parser.add_argument(
+        "-t", "--title", default="Context Diamond Capsule", help="Base capsule title."
+    )
+    parser.add_argument("-f", "--format", choices=("markdown", "json"), default="markdown")
+    parser.add_argument(
+        "-o", "--output-dir", default=".", help="Output directory for generated capsules."
+    )
+    parser.add_argument(
+        "--template", choices=list_templates(), default="default", help="Capsule template."
+    )
+    parser.add_argument(
+        "--messages-json", action="store_true", help="Interpret inputs as JSON message lists."
+    )
+    parser.add_argument(
+        "--loss-report", action="store_true", help="Include loss report in JSON metadata."
+    )
+    args = parser.parse_args(argv)
+
+    from glob import glob as stdlib_glob
+
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    template = get_template(args.template)
+    config_kwargs = template.to_config_kwargs(token_budget=args.budget)
+    config_kwargs["title"] = args.title
+    config_kwargs["include_loss_report"] = args.loss_report
+    config = CompressionConfig(**config_kwargs)
+    compressor = ContextDiamondCompressor(config)
+
+    expanded_paths: list[str] = []
+    for pattern in args.inputs:
+        matches = stdlib_glob(pattern, recursive=True)
+        if matches:
+            expanded_paths.extend(matches)
+        else:
+            expanded_paths.append(pattern)
+
+    written: list[str] = []
+    for path_str in expanded_paths:
+        path = Path(path_str)
+        if not path.is_file():
+            continue
+        try:
+            raw = path.read_text(encoding="utf-8")
+            source = json.loads(raw) if args.messages_json else raw
+            capsule = compressor.compress(source)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            continue
+
+        suffix = ".json" if args.format == "json" else ".md"
+        out_name = path.stem + suffix
+        out_path = output_dir / out_name
+        rendered = capsule.to_json() if args.format == "json" else capsule.to_markdown()
+        out_path.write_text(rendered, encoding="utf-8")
+        written.append(out_path.as_posix())
+
+    stream = stdout or sys.stdout
+    stream.write(f"Batch processed {len(written)} file(s):\n")
+    for w in written:
+        stream.write(f"  {w}\n")
     return 0
 
 

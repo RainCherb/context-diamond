@@ -84,6 +84,29 @@ ctxd diff old_capsule.json new_capsule.json
 ctxd merge chat.json repo.json issue.json --budget 900
 ```
 
+Batch-process multiple files:
+
+```bash
+ctxd batch notes/*.md --output-dir capsules/ --budget 400 --template coding
+```
+
+Use a domain-specific template:
+
+```bash
+context-diamond incident_report.md --template incident --budget 500
+```
+
+Stream capsules incrementally:
+
+```python
+from context_diamond import StreamingCompressor
+
+streamer = StreamingCompressor()
+streamer.add_message("Goal: build a login form.")
+streamer.add_message("Decision: use JWT tokens.")
+capsule = streamer.current_capsule
+```
+
 Example benchmark output:
 
 ```text
@@ -152,6 +175,9 @@ ctxd merge chat.json repo.json --output merged.md
 
 # Stdin
 type notes.md | context-diamond - --budget 350
+
+# Precise tokenizers (optional extras)
+context-diamond notes.md --tokenizer tiktoken --budget 500
 ```
 
 Use a JSON message list:
@@ -236,6 +262,10 @@ Read the honest comparison in [docs/why-context-diamond.md](docs/why-context-dia
 - **Composable capsules**: `ctxd diff` and `ctxd merge` support handoff evolution.
 - **Structured**: goals, rules, decisions, facts, state, risks, anchors.
 - **Composable**: CLI, Python API, JSON output, adapters, MCP.
+- **Precise tokenizers**: optional `tiktoken`, `anthropic`, and `transformers` adapters.
+- **Templates**: domain-specific presets (`coding`, `support`, `research`, `incident`).
+- **Streaming**: `StreamingCompressor` for incremental capsule updates.
+- **Batch processing**: `ctxd batch` for multiple files.
 
 ## Docs
 

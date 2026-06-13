@@ -31,8 +31,8 @@ def estimate_tokens(text: str) -> int:
     tokens = TOKEN_RE.findall(text)
     # Long natural-language words and long paths usually split into multiple
     # model tokens. The small surcharge makes budget checks less optimistic.
-    surcharge = sum(max(len(token) - 12, 0) // 8 for token in tokens)
-    path_bonus = sum(token.count("/") + token.count(".") for token in tokens if "/" in token)
+    surcharge: int = sum(max(len(token) - 12, 0) // 8 for token in tokens)
+    path_bonus: int = sum(token.count("/") + token.count(".") for token in tokens if "/" in token)
     return len(tokens) + surcharge + path_bonus
 
 

@@ -54,11 +54,11 @@ def build_repo_context(
     ]
 
     for relative in included:
-        path = (repo_root / relative).resolve()
-        if not _is_within(path, repo_root) or not path.is_file():
+        file_path = (repo_root / relative).resolve()
+        if not _is_within(file_path, repo_root) or not file_path.is_file():
             continue
         try:
-            content = path.read_text(encoding="utf-8")
+            content = file_path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
         sections.extend(
