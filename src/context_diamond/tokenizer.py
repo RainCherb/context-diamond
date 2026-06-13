@@ -56,11 +56,17 @@ def split_sentences(text: str) -> list[str]:
     normalized = text.replace("\r\n", "\n").replace("\r", "\n")
     shards: list[str] = []
 
-    for block in re.split(r"\n{2,}", normalized):
+    for kind, block in _markdown_segments(normalized):
         block = block.strip()
         if not block:
             continue
-        if block.startswith("#"):
+        if kind in {"code", "table"}:
+            shards.append(block)
+            continue
+        block = "\n".join(
+            line for line in block.splitlines() if not line.lstrip().startswith("#")
+        ).strip()
+        if not block:
             continue
 
         if "\n" in block:
@@ -69,6 +75,57 @@ def split_sentences(text: str) -> list[str]:
             shards.extend(_split_inline(block))
 
     return [shard for shard in shards if shard]
+
+
+def _markdown_segments(text: str) -> list[tuple[str, str]]:
+    segments: list[tuple[str, str]] = []
+    buffer: list[str] = []
+    code_buffer: list[str] = []
+    table_buffer: list[str] = []
+    in_code = False
+
+    def flush_text() -> None:
+        if buffer:
+            segments.extend(("text", block) for block in re.split(r"\n{2,}", "\n".join(buffer)))
+            buffer.clear()
+
+    def flush_table() -> None:
+        if table_buffer:
+            segments.append(("table", "\n".join(table_buffer)))
+            table_buffer.clear()
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            flush_table()
+            if in_code:
+                code_buffer.append(line)
+                segments.append(("code", "\n".join(code_buffer)))
+                code_buffer.clear()
+                in_code = False
+            else:
+                flush_text()
+                in_code = True
+                code_buffer.append(line)
+            continue
+
+        if in_code:
+            code_buffer.append(line)
+            continue
+
+        if _is_table_line(stripped):
+            flush_text()
+            table_buffer.append(line)
+            continue
+
+        flush_table()
+        buffer.append(line)
+
+    if in_code and code_buffer:
+        segments.append(("code", "\n".join(code_buffer)))
+    flush_table()
+    flush_text()
+    return segments
 
 
 def _split_inline(text: str) -> list[str]:
@@ -95,15 +152,14 @@ def _split_wrapped_block(block: str) -> list[str]:
             flush()
             continue
 
-        is_bullet = bool(re.match(r"^[-*]\s+", raw))
+        is_bullet = bool(re.match(r"^[-*]\s+(?:\[[ xX]\]\s+)?", raw))
         is_speaker = bool(re.match(r"^[A-Za-z][A-Za-z _-]{0,24}:\s+", raw))
 
         if is_bullet:
             flush()
-            shards.extend(_split_inline(raw.strip(" \t-*")))
-        elif (is_speaker and buffer) or (
-            buffer and _looks_like_new_sentence_line(buffer[-1], raw)
-        ):
+            item = re.sub(r"^[-*]\s+(?:\[[ xX]\]\s+)?", "", raw)
+            shards.extend(_split_inline(item))
+        elif (is_speaker and buffer) or (buffer and _looks_like_new_sentence_line(buffer[-1], raw)):
             flush()
             buffer.append(raw)
         else:
@@ -115,3 +171,11 @@ def _split_wrapped_block(block: str) -> list[str]:
 
 def _looks_like_new_sentence_line(previous: str, current: str) -> bool:
     return previous.endswith((".", "?", "!")) and current[:1].isupper()
+
+
+def _is_table_line(line: str) -> bool:
+    if not line or "|" not in line:
+        return False
+    if re.fullmatch(r"\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?", line):
+        return True
+    return line.count("|") >= 2

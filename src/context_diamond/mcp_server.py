@@ -15,7 +15,7 @@ from .benchmark import render_markdown, run_benchmark
 from .compressor import CompressionConfig, ContextDiamondCompressor
 from .profiles import list_tokenizer_profiles
 
-SERVER_INFO = {"name": "context-diamond", "version": "0.1.0"}
+SERVER_INFO = {"name": "context-diamond", "version": "0.6.3"}
 JSON_CONTENT = "application/json"
 TEXT_CONTENT = "text/markdown"
 

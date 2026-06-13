@@ -2,6 +2,11 @@
 
 ```bash
 context-diamond INPUT [--budget N] [--title TEXT] [--format markdown|json] [--output PATH]
+context-diamond compress INPUT [--budget N]
+context-diamond explain INPUT [--format table|json]
+context-diamond repo [PATH] [--include README.md src/app.py]
+context-diamond diff OLD.json NEW.json
+context-diamond merge A.json B.json [--budget N]
 ```
 
 Alias:
@@ -50,3 +55,44 @@ are reported as CLI usage errors.
 
 Each message must be an object. `role` and `content` must be strings. `name` is
 optional and must also be a string when provided.
+
+## Explain
+
+`explain` exposes the shard-level audit trail used by the compressor:
+
+```bash
+ctxd explain examples/chat_transcript.md
+ctxd explain messages.json --messages-json --format json
+```
+
+The table includes shard index, score, facet, token estimate, scoring reasons,
+and source text.
+
+## Repo
+
+`repo` builds a capsule from repository state plus selected files:
+
+```bash
+ctxd repo . --budget 1200
+ctxd repo . --include README.md pyproject.toml src/context_diamond/cli.py
+```
+
+It includes branch, `git status --short`, `git diff --stat`, default project
+files, and changed or untracked text files. File reads stay inside the requested
+repository path.
+
+## Diff And Merge
+
+Diff compares JSON capsules by section item:
+
+```bash
+ctxd diff old_capsule.json new_capsule.json
+ctxd diff old_capsule.json new_capsule.json --format json
+```
+
+Merge deduplicates section items across multiple JSON capsules:
+
+```bash
+ctxd merge handoff.json issue.json repo.json --output merged.md
+ctxd merge handoff.json issue.json repo.json --budget 900 --format json
+```

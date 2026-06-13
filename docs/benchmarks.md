@@ -37,6 +37,22 @@ Use longer handoff corpora for meaningful compression tests:
 context-diamond-bench examples/long_handoff.md --budget 320
 ```
 
+## Recall Gates
+
+Use `--min-recall` in CI to fail when a scoring change drops key signals:
+
+```bash
+context-diamond-bench tests/fixtures/benchmark_handoff.md \
+  --budget 260 \
+  --min-recall constraints=1.0 \
+  --min-recall decisions=1.0 \
+  --min-recall risks=1.0
+```
+
+The repository includes `tests/fixtures/benchmark_handoff.md` as a small strict
+corpus. Real projects should add representative handoffs from their own coding,
+support, research, or incident workflows.
+
 ## Tokenizer Profiles
 
 The runner supports conservative estimate profiles:

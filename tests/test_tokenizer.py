@@ -29,3 +29,29 @@ def test_split_sentences_keeps_finished_lines_separate() -> None:
         "Goal: save tokens.",
         "The system must stay deterministic.",
     ]
+
+
+def test_split_sentences_preserves_fenced_code_blocks() -> None:
+    text = "Failure:\n\n```python\nraise RuntimeError('boom')\n```\n\nDecision: fix tests."
+    shards = split_sentences(text)
+
+    assert "```python\nraise RuntimeError('boom')\n```" in shards
+    assert "Decision: fix tests." in shards
+
+
+def test_split_sentences_preserves_markdown_tables() -> None:
+    text = "| File | Status |\n| --- | --- |\n| src/app.py | failing |\n\nOpen question?"
+
+    assert split_sentences(text) == [
+        "| File | Status |\n| --- | --- |\n| src/app.py | failing |",
+        "Open question?",
+    ]
+
+
+def test_split_sentences_strips_markdown_task_list_markers() -> None:
+    text = "- [ ] Implement repo command.\n- [x] Keep old CLI behavior."
+
+    assert split_sentences(text) == [
+        "Implement repo command.",
+        "Keep old CLI behavior.",
+    ]

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from context_diamond.benchmark import render_markdown, run_benchmark
+from context_diamond.benchmark import main, recall_failures, render_markdown, run_benchmark
 
 
 def test_run_benchmark_compares_signal_recall(tmp_path: Path) -> None:
@@ -48,3 +48,35 @@ def test_default_word_is_not_treated_as_decision_signal(tmp_path: Path) -> None:
     result = run_benchmark([source], budget=140)[0]
 
     assert result.diamond_signal_recall["decisions"] == 1.0
+
+
+def test_recall_failures_report_gate_misses(tmp_path: Path) -> None:
+    source = tmp_path / "source.md"
+    source.write_text("Decision: keep capsules structured.", encoding="utf-8")
+    result = run_benchmark([source], budget=80)[0]
+
+    failures = recall_failures([result], {"decisions": 1.01})
+
+    assert failures
+    assert "decisions recall" in failures[0]
+
+
+def test_benchmark_fixture_passes_strict_recall_gates() -> None:
+    fixture = Path(__file__).parent / "fixtures" / "benchmark_handoff.md"
+
+    assert (
+        main(
+            [
+                str(fixture),
+                "--budget",
+                "260",
+                "--min-recall",
+                "constraints=1.0",
+                "--min-recall",
+                "decisions=1.0",
+                "--min-recall",
+                "risks=1.0",
+            ]
+        )
+        == 0
+    )

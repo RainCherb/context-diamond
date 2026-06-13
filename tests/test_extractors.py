@@ -7,9 +7,10 @@ def test_final_requirement_is_a_constraint() -> None:
 
 
 def test_decision_label_is_not_stripped_as_speaker() -> None:
-    assert detect_facet(
-        "Decision: use a diamond capsule with intent, constraints, and decisions."
-    ) == "decisions"
+    assert (
+        detect_facet("Decision: use a diamond capsule with intent, constraints, and decisions.")
+        == "decisions"
+    )
 
 
 def test_user_constraint_scores_above_noise_log() -> None:

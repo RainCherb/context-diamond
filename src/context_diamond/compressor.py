@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from .extractors import FACET_TITLES, create_shards, extract_entities, normalize_messages
 from .model import CapsuleSection, ContextCapsule, LossReport, Message, SentenceShard
+from .plugins import ShardPlugin, ShardReranker, get_registered_plugins
 from .profiles import estimate_profile_tokens, list_tokenizer_profiles
 from .tokenizer import estimate_tokens, trim_to_token_budget
 
@@ -20,6 +22,8 @@ class CompressionConfig:
     include_rehydration_prompt: bool = True
     include_loss_report: bool = False
     tokenizer_profile: str = "generic"
+    plugins: tuple[ShardPlugin, ...] = ()
+    reranker: ShardReranker | None = None
     facet_weights: dict[str, float] = field(
         default_factory=lambda: {
             "pulse": 0.12,
@@ -62,7 +66,7 @@ class ContextDiamondCompressor:
         messages = normalize_messages(text_or_messages)
         source_text = "\n\n".join(message.content for message in messages)
         source_tokens = estimate_tokens(source_text)
-        shards = create_shards(messages)
+        shards = self.prepare_shards(messages)
 
         sections = self._build_sections(shards)
         if self.config.include_rehydration_prompt:
@@ -78,6 +82,8 @@ class ContextDiamondCompressor:
                 "source_messages": len(messages),
                 "source_shards": len(shards),
                 "token_budget": self.config.token_budget,
+                "plugins": _plugin_names(self._plugins()),
+                "reranker": getattr(self.config.reranker, "name", None),
             },
         )
 
@@ -106,6 +112,39 @@ class ContextDiamondCompressor:
             strategy=fitted.strategy,
             metadata=metadata,
         )
+
+    def explain(
+        self,
+        text_or_messages: str | list[Message] | list[dict[str, str]],
+    ) -> list[dict[str, Any]]:
+        """Return shard-level facet, score, token, and reason data."""
+
+        messages = normalize_messages(text_or_messages)
+        return [
+            {
+                "index": shard.index,
+                "role": shard.role,
+                "facet": shard.facet,
+                "score": shard.score,
+                "tokens": shard.tokens,
+                "reasons": list(shard.reasons),
+                "text": shard.text,
+            }
+            for shard in self.prepare_shards(messages)
+        ]
+
+    def prepare_shards(self, messages: list[Message]) -> list[SentenceShard]:
+        """Create shards and run configured plugin/reranker hooks."""
+
+        shards = create_shards(messages)
+        for plugin in self._plugins():
+            shards = plugin.refine_shards(messages, shards)
+        if self.config.reranker is not None:
+            shards = self.config.reranker.rerank(shards)
+        return shards
+
+    def _plugins(self) -> list[ShardPlugin]:
+        return [*get_registered_plugins(), *self.config.plugins]
 
     def _build_sections(self, shards: list[SentenceShard]) -> list[CapsuleSection]:
         selected_sections: list[CapsuleSection] = []
@@ -284,3 +323,7 @@ def _strict_trim(text: str, budget: int) -> str:
 
 def _item_key(item: str) -> str:
     return " ".join(item.lower().split())
+
+
+def _plugin_names(plugins: list[ShardPlugin]) -> list[str]:
+    return [getattr(plugin, "name", plugin.__class__.__name__) for plugin in plugins]

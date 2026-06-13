@@ -9,7 +9,8 @@
 [![No API Keys](https://img.shields.io/badge/API%20keys-not%20required-brightgreen.svg)](docs/architecture.md)
 [![OpenCode MCP](https://img.shields.io/badge/OpenCode-MCP%20ready-purple.svg)](docs/opencode.md)
 
-Context Diamond is a deterministic context compression toolkit for LLM handoffs.
+Context Diamond is a deterministic context compression and handoff toolkit for
+LLM agents.
 It extracts the things models keep losing in long conversations:
 
 - goals and success criteria
@@ -62,6 +63,25 @@ Benchmark it against dumb head/tail clipping:
 
 ```bash
 context-diamond-bench examples/long_handoff.md --budget 320
+```
+
+Inspect why shards were selected:
+
+```bash
+ctxd explain examples/long_handoff.md
+```
+
+Build a capsule from a repository:
+
+```bash
+ctxd repo . --budget 1200
+```
+
+Compare or merge capsules as the handoff evolves:
+
+```bash
+ctxd diff old_capsule.json new_capsule.json
+ctxd merge chat.json repo.json issue.json --budget 900
 ```
 
 Example benchmark output:
@@ -119,6 +139,16 @@ context-diamond notes.md --budget 500 --output capsule.md
 
 # JSON capsule for automation
 context-diamond notes.md --format json --loss-report --output capsule.json
+
+# Explain shard scoring
+ctxd explain notes.md
+
+# Repository capsule
+ctxd repo . --budget 1200
+
+# Capsule evolution
+ctxd diff old.json new.json
+ctxd merge chat.json repo.json --output merged.md
 
 # Stdin
 type notes.md | context-diamond - --budget 350
@@ -201,6 +231,9 @@ Read the honest comparison in [docs/why-context-diamond.md](docs/why-context-dia
 - **OpenCode-ready**: ships a local stdio MCP server.
 - **Benchmarkable**: compare against deterministic clipping baselines.
 - **Auditable**: optional loss report shows omitted shards.
+- **Explainable**: `ctxd explain` shows shard facets, scores, tokens, and reasons.
+- **Repo-aware**: `ctxd repo` captures branch, git state, and selected files.
+- **Composable capsules**: `ctxd diff` and `ctxd merge` support handoff evolution.
 - **Structured**: goals, rules, decisions, facts, state, risks, anchors.
 - **Composable**: CLI, Python API, JSON output, adapters, MCP.
 

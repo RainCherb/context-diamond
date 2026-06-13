@@ -1,6 +1,16 @@
+from dataclasses import replace
+
 import pytest
 
-from context_diamond import CompressionConfig, ContextDiamondCompressor, compress_text
+from context_diamond import (
+    CompressionConfig,
+    ContextDiamondCompressor,
+    EmbeddingReranker,
+    Message,
+    clear_registered_plugins,
+    compress_text,
+    register_plugin,
+)
 
 SOURCE = """
 Goal: build a new public tool that compresses LLM context and saves tokens.
@@ -68,3 +78,52 @@ def test_loss_report_can_be_added_to_metadata() -> None:
     assert report["kept_count"] > 0
     assert "omitted_by_facet" in report
     assert capsule.metadata["tokenizer_profile"] == "generic"
+
+
+def test_compressor_explain_returns_shard_audit_rows() -> None:
+    rows = ContextDiamondCompressor().explain("Решение: использовать MCP.\nНельзя терять правила.")
+
+    assert rows[0]["facet"] == "decisions"
+    assert any(row["facet"] == "constraints" for row in rows)
+
+
+def test_registered_plugin_can_refine_shards() -> None:
+    class BoostPlugin:
+        name = "boost-test"
+
+        def refine_shards(self, messages, shards):
+            return [
+                replace(shard, score=shard.score + 1, reasons=(*shard.reasons, "boost"))
+                for shard in shards
+            ]
+
+    clear_registered_plugins()
+    register_plugin(BoostPlugin())
+    try:
+        capsule = ContextDiamondCompressor().compress("Goal: keep extension hooks.")
+    finally:
+        clear_registered_plugins()
+
+    assert capsule.metadata["plugins"] == ["boost-test"]
+    assert "boost-test" not in capsule.to_markdown()
+
+
+def test_embedding_reranker_uses_caller_supplied_embeddings() -> None:
+    def embed(texts: list[str]) -> list[list[float]]:
+        vectors = []
+        for text in texts:
+            vectors.append([1.0, 0.0] if "Decision" in text or "important" in text else [0.0, 1.0])
+        return vectors
+
+    config = CompressionConfig(
+        reranker=EmbeddingReranker(embed, query="important Decision", semantic_weight=0.5)
+    )
+    rows = ContextDiamondCompressor(config).explain(
+        [
+            Message(role="source", content="Background note."),
+            Message(role="source", content="Decision: keep optional embedding reranking."),
+        ]
+    )
+
+    assert rows[0]["text"].startswith("Decision:")
+    assert "embedding-rerank" in rows[0]["reasons"]

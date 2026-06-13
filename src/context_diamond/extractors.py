@@ -31,6 +31,14 @@ FACET_KEYWORDS = {
         "deliver",
         "user wants",
         "success",
+        "цель",
+        "задача",
+        "нужно",
+        "создай",
+        "создать",
+        "сделай",
+        "реализуй",
+        "успех",
     ),
     "constraints": (
         "must",
@@ -43,6 +51,15 @@ FACET_KEYWORDS = {
         "required",
         "without",
         "avoid",
+        "обязательно",
+        "нельзя",
+        "никогда",
+        "не должен",
+        "не должно",
+        "требование",
+        "ограничение",
+        "без",
+        "избегай",
     ),
     "decisions": (
         "decided",
@@ -52,6 +69,12 @@ FACET_KEYWORDS = {
         "approved",
         "instead",
         "default",
+        "решение",
+        "решили",
+        "выбрали",
+        "выбран",
+        "одобрено",
+        "по умолчанию",
     ),
     "state": (
         "currently",
@@ -66,6 +89,16 @@ FACET_KEYWORDS = {
         "branch",
         "test",
         "todo",
+        "сейчас",
+        "текущий",
+        "реализовано",
+        "падает",
+        "ошибка",
+        "баг",
+        "файл",
+        "путь",
+        "ветка",
+        "тест",
     ),
     "open_loops": (
         "question",
@@ -77,10 +110,21 @@ FACET_KEYWORDS = {
         "next",
         "follow",
         "investigate",
+        "вопрос",
+        "риск",
+        "заблокировано",
+        "неизвестно",
+        "неясно",
+        "нужно проверить",
+        "следующий",
+        "исследовать",
     ),
 }
 
-CODE_OR_PATH_RE = re.compile(r"`[^`]+`|[A-Za-z0-9_./-]+\.(?:py|ts|tsx|js|md|json|toml|yml|yaml)")
+CODE_OR_PATH_RE = re.compile(
+    r"`[^`]+`|[A-Za-z]:\\[^\s`]+|[A-Za-z0-9_./\\-]+\."
+    r"(?:py|ts|tsx|js|jsx|md|json|toml|yml|yaml|txt|log|diff)"
+)
 ENTITY_RE = re.compile(r"\b[A-Z][A-Za-z0-9]*(?:[A-Z][A-Za-z0-9]*)?\b")
 
 
@@ -164,15 +208,21 @@ def detect_facet(text: str) -> str:
 
     if compact.startswith("noise log"):
         return "noise"
-    if compact.startswith(("tool:", "error:", "failure:")):
+    if compact.startswith(("```", "~~~", "tool:", "error:", "failure:", "traceback")):
         return "state"
-    if without_speaker.startswith(("decision:", "decided:", "choice:")):
+    if without_speaker.startswith(("decision:", "decided:", "choice:", "решение:", "выбрали:")):
         return "decisions"
-    if without_speaker.startswith(("current state:", "state:", "currently:")):
+    if without_speaker.startswith(
+        ("current state:", "state:", "currently:", "текущее состояние:", "статус:")
+    ):
         return "state"
-    if without_speaker.startswith(("open question:", "open risk:", "risk:", "blocked:")):
+    if without_speaker.startswith(
+        ("open question:", "open risk:", "risk:", "blocked:", "вопрос:", "риск:")
+    ):
         return "open_loops"
-    if without_speaker.startswith(("final requirement:", "requirement:")):
+    if without_speaker.startswith(
+        ("final requirement:", "requirement:", "финальное требование:", "требование:")
+    ):
         return "constraints"
 
     if "?" in text:
@@ -202,11 +252,24 @@ def score_sentence(text: str, *, index: int, total: int, role: str) -> float:
         score -= 0.75
     if CODE_OR_PATH_RE.search(text):
         score += 0.4
-    if any(marker in lowered for marker in ("must", "never", "important", "required")):
+    if any(
+        marker in lowered
+        for marker in ("must", "never", "important", "required", "обязательно", "важно", "нельзя")
+    ):
         score += 0.55
-    if any(marker in lowered for marker in ("must not", "do not", "cannot", "final requirement")):
+    if any(
+        marker in lowered
+        for marker in (
+            "must not",
+            "do not",
+            "cannot",
+            "final requirement",
+            "не должен",
+            "не должно",
+        )
+    ):
         score += 0.35
-    if any(marker in lowered for marker in ("decided", "decision", "will", "chosen")):
+    if any(marker in lowered for marker in ("decided", "decision", "will", "chosen", "решение")):
         score += 0.35
     if "?" in text:
         score += 0.3
@@ -228,12 +291,15 @@ def score_reasons(text: str) -> list[str]:
     reasons: list[str] = []
     if CODE_OR_PATH_RE.search(text):
         reasons.append("code-or-path")
-    if any(marker in lowered for marker in ("must", "never", "required", "must not", "do not")):
+    if any(
+        marker in lowered
+        for marker in ("must", "never", "required", "must not", "do not", "обязательно", "нельзя")
+    ):
         reasons.append("constraint")
-    if any(marker in lowered for marker in ("decided", "decision", "chosen")):
+    if any(marker in lowered for marker in ("decided", "decision", "chosen", "решение", "выбрали")):
         reasons.append("decision")
     if "?" in text or without_speaker.startswith(
-        ("open question:", "open risk:", "risk:", "blocked:")
+        ("open question:", "open risk:", "risk:", "blocked:", "вопрос:", "риск:")
     ):
         reasons.append("question")
     return reasons

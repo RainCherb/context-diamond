@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "context-diamond"
-version = "0.1.0"
-description = "Auditable context capsules for LLM handoffs, coding agents, and OpenCode MCP workflows."
+version = "0.6.3"
+description = "Auditable context capsules, repo handoffs, and capsule diffs for LLM agents and OpenCode MCP workflows."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

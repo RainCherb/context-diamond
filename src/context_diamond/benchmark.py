@@ -136,6 +136,13 @@ def main(argv: list[str] | None = None) -> int:
         default="markdown",
         help="Output format.",
     )
+    parser.add_argument(
+        "--min-recall",
+        action="append",
+        default=[],
+        metavar="SIGNAL=VALUE",
+        help="Fail when Diamond recall for a signal is below VALUE, e.g. constraints=0.9.",
+    )
     args = parser.parse_args(argv)
 
     if args.budget <= 0:
@@ -146,11 +153,35 @@ def main(argv: list[str] | None = None) -> int:
         budget=args.budget,
         profile=args.profile,
     )
+    try:
+        thresholds = _parse_thresholds(args.min_recall)
+    except argparse.ArgumentTypeError as error:
+        parser.error(str(error))
+    failures = recall_failures(results, thresholds)
     if args.format == "json":
         print(json.dumps([result.to_dict() for result in results], ensure_ascii=False, indent=2))
     else:
         print(render_markdown(results), end="")
+    if failures:
+        print("\nRecall gate failures:")
+        for failure in failures:
+            print(f"- {failure}")
+        return 1
     return 0
+
+
+def recall_failures(results: list[BenchmarkResult], thresholds: dict[str, float]) -> list[str]:
+    """Return human-readable recall gate failures."""
+
+    failures: list[str] = []
+    for result in results:
+        for signal, minimum in thresholds.items():
+            actual = result.diamond_signal_recall.get(signal)
+            if actual is None:
+                failures.append(f"{result.source}: unknown signal {signal!r}")
+            elif actual < minimum:
+                failures.append(f"{result.source}: {signal} recall {actual:.2f} < {minimum:.2f}")
+    return failures
 
 
 def _signals(text: str) -> dict[str, set[str]]:
@@ -186,6 +217,25 @@ def _format_recall(recall: dict[str, float]) -> str:
 
 def _source_label(path: Path) -> str:
     return path.name if path.is_absolute() else path.as_posix()
+
+
+def _parse_thresholds(values: list[str]) -> dict[str, float]:
+    thresholds: dict[str, float] = {}
+    for value in values:
+        if "=" not in value:
+            msg = f"invalid --min-recall {value!r}; expected SIGNAL=VALUE"
+            raise argparse.ArgumentTypeError(msg)
+        name, raw_threshold = value.split("=", 1)
+        try:
+            threshold = float(raw_threshold)
+        except ValueError as error:
+            msg = f"invalid recall threshold {raw_threshold!r}"
+            raise argparse.ArgumentTypeError(msg) from error
+        if not 0 <= threshold <= 1:
+            msg = "recall threshold must be between 0 and 1"
+            raise argparse.ArgumentTypeError(msg)
+        thresholds[name] = threshold
+    return thresholds
 
 
 if __name__ == "__main__":
