@@ -9,7 +9,7 @@
 [![No API Keys](https://img.shields.io/badge/API%20keys-not%20required-brightgreen.svg)](docs/architecture.md)
 [![OpenCode MCP](https://img.shields.io/badge/OpenCode-MCP%20ready-purple.svg)](docs/opencode.md)
 
-Context Diamond v0.6.3 is a deterministic context compression and handoff toolkit for
+Context Diamond v0.7.0 is a deterministic context compression and handoff toolkit for
 LLM agents.
 It extracts the things models keep losing in long conversations:
 
@@ -140,17 +140,20 @@ Add Context Diamond to OpenCode as a local MCP server:
       "type": "local",
       "command": ["context-diamond-mcp"],
       "enabled": true,
-      "timeout": 10000
+      "timeout": 30000
     }
   }
 }
 ```
 
-OpenCode tools:
+OpenCode tools (prefixed with `context_diamond_`):
 
-- `context_diamond_compress_text`
-- `context_diamond_compress_file`
-- `context_diamond_benchmark_file`
+- **Compression**: `compress_text`, `compress_file`, `batch_compress`
+- **Explainability**: `explain_text`
+- **Repository**: `repo_capsule`
+- **Benchmark**: `benchmark_file`
+- **Streaming**: `streaming_add`, `streaming_get`, `streaming_reset`
+- **Discovery**: `list_templates`, `list_tokenizers`, `get_template_info`
 
 See [docs/opencode.md](docs/opencode.md).
 
@@ -293,10 +296,9 @@ On macOS or Linux, activate with `source .venv/bin/activate`.
 ## Roadmap
 
 - Larger public benchmark corpus with task-level answer quality checks.
-- Optional embedding reranker for very large sources.
-- Exact tokenizer extras for OpenAI, Anthropic, Gemini, and local models.
+- Domain-adapted embedding reranker profiles.
 - More first-class agent adapters: GitHub issues, Linear, Slack, Markdown logs.
-- Streaming capsule updates for long-running coding agents.
+- Extended plugin hooks for custom facet detection and scoring.
 - PyPI release after the public API stabilizes.
 
 ## Star This If

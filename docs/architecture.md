@@ -15,16 +15,19 @@ source text/messages
 ## Modules
 
 - `tokenizer.py` estimates local token budgets and splits source text.
+- `tokenizers.py` provides precise optional tokenizer adapters (`tiktoken`, `anthropic`, `transformers`).
 - `extractors.py` assigns each shard to a facet and extracts entities.
 - `compressor.py` selects shards and creates a `ContextCapsule`.
 - `benchmark.py` compares capsules with deterministic clipping baselines.
 - `capsules.py` compares and merges JSON capsules.
 - `integrations.py` adapts chat messages, documents, and tool payloads.
-- `mcp_server.py` exposes compression and benchmark tools over stdio MCP.
+- `mcp_server.py` exposes compression, benchmark, streaming, explainability, and discovery tools over stdio MCP.
 - `plugins.py` defines dependency-free plugin and reranker protocols.
 - `profiles.py` provides conservative tokenizer estimate profiles.
 - `repo.py` collects repository state and selected files for coding-agent capsules.
 - `rerankers.py` contains optional reranking helpers.
+- `streaming.py` provides `StreamingCompressor` for incremental capsule updates.
+- `templates.py` provides domain-specific capsule presets (`coding`, `support`, `research`, `incident`).
 - `model.py` contains dataclasses for messages, shards, sections, and capsules.
 - `cli.py` exposes the package as `context-diamond` and `ctxd`.
 

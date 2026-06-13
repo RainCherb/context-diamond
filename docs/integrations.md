@@ -55,5 +55,8 @@ For OpenCode, use the local MCP server entrypoint:
 context-diamond-mcp
 ```
 
-See [opencode.md](opencode.md) for the `opencode.json` configuration and tool
-argument reference.
+The server exposes 12 tools covering compression, explainability, benchmarking,
+streaming sessions, batch processing, repository context, and discovery.
+
+See [opencode.md](opencode.md) for the `opencode.json` configuration and full
+tool argument reference.

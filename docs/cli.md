@@ -7,6 +7,7 @@ context-diamond explain INPUT [--format table|json]
 context-diamond repo [PATH] [--include README.md src/app.py]
 context-diamond diff OLD.json NEW.json
 context-diamond merge A.json B.json [--budget N]
+context-diamond batch INPUTS... [--output-dir PATH] [--budget N] [--template NAME]
 ```
 
 Alias:
@@ -26,6 +27,8 @@ ctxd INPUT
 - `--no-rehydration-prompt`: omit the final rehydration instructions.
 - `--loss-report`: include kept/omitted shard audit data in JSON metadata.
 - `--tokenizer-profile`: add profile-based token estimates to metadata.
+- `--template`: domain-specific capsule preset (`default`, `coding`, `support`, `research`, `incident`).
+- `--tokenizer`: precise tokenizer to use (`generic`, `tiktoken`, `anthropic`, `transformers`).
 
 `--budget` controls selected capsule sections. Full Markdown output includes
 headers and metadata lines, so benchmark reports may show a larger rendered-token
@@ -39,6 +42,13 @@ context-diamond examples/chat_transcript.md --title "Sprint Handoff"
 context-diamond examples/chat_transcript.md --format json --output capsule.json
 context-diamond examples/chat_transcript.md --format json --loss-report
 ctxd - --budget 300 < notes.md
+
+# Domain-specific templates
+context-diamond incident_report.md --template incident --budget 500
+context-diamond chat.md --template support --budget 400 --format json
+
+# Precise tokenizers (optional extras)
+context-diamond notes.md --tokenizer tiktoken --budget 500
 ```
 
 Invalid budgets, unreadable files, malformed JSON, and invalid message objects
@@ -95,4 +105,13 @@ Merge deduplicates section items across multiple JSON capsules:
 ```bash
 ctxd merge handoff.json issue.json repo.json --output merged.md
 ctxd merge handoff.json issue.json repo.json --budget 900 --format json
+```
+
+## Batch
+
+`batch` processes multiple files into capsules in a single command:
+
+```bash
+ctxd batch notes/*.md --output-dir capsules/ --budget 400 --template coding
+ctxd batch doc1.md doc2.md doc3.md --output-dir out/ --format json
 ```
