@@ -89,11 +89,8 @@ class AdaptiveCompressor:
         """
         limit = self._get_limit(model_name)
         if reserve_tokens is None:
-            reserve_tokens = max(
-                limit.max_output_tokens,
-                int(limit.context_window * self.default_reserve_ratio),
-            )
-        budget = limit.context_window - reserve_tokens - limit.max_output_tokens
+            reserve_tokens = int(limit.context_window * self.default_reserve_ratio)
+        budget = limit.context_window - reserve_tokens
         return max(self.min_budget, budget)
 
     def should_compress(
