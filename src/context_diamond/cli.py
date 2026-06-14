@@ -85,6 +85,26 @@ def build_parser() -> argparse.ArgumentParser:
         default="generic",
         help="Precise tokenizer to use (optional extras may be required). Default: generic.",
     )
+    parser.add_argument(
+        "--model",
+        default=None,
+        help=(
+            "Adaptive compression for a target LLM model. "
+            "Examples: gpt-4o, claude-3-sonnet, gemini-1.5-pro. "
+            "Overrides --budget with the model's context window."
+        ),
+    )
+    parser.add_argument(
+        "--cascade",
+        action="store_true",
+        help="Use multi-level cascade compression (3 levels by default).",
+    )
+    parser.add_argument(
+        "--cascade-levels",
+        type=_positive_int,
+        default=3,
+        help="Number of cascade levels (used with --cascade). Default: 3.",
+    )
     return parser
 
 
@@ -115,20 +135,68 @@ def _main_compress(argv: list[str] | None = None, stdout: TextIO | None = None) 
         raw = _read_input(args.input)
         source = json.loads(raw) if args.messages_json else raw
 
-        template = get_template(args.template)
-        config_kwargs = template.to_config_kwargs(token_budget=args.budget)
-        config_kwargs["title"] = args.title
-        config_kwargs["include_rehydration_prompt"] = not args.no_rehydration_prompt
-        config_kwargs["include_loss_report"] = args.loss_report
-        config_kwargs["tokenizer_profile"] = args.tokenizer_profile
-        config = CompressionConfig(**config_kwargs)
+        capsule: Any
+        compressor: Any
+        if args.cascade:
+            from .cascade import CascadeCompressor, CascadeLevel
 
-        compressor = ContextDiamondCompressor(config)
-        capsule = compressor.compress(source)
+            levels = []
+            budgets = [800, 400, 200]
+            for i in range(min(args.cascade_levels, len(budgets))):
+                level = CascadeLevel(
+                    token_budget=budgets[i],
+                    include_rehydration_prompt=(i == 0),
+                )
+                if i > 0:
+                    level.facet_weights = {
+                        "pulse": 0.0,
+                        "goal": 0.0,
+                        "constraints": 0.5,
+                        "decisions": 0.4,
+                        "facts": 0.0,
+                        "state": 0.1,
+                        "open_loops": 0.0,
+                        "glossary": 0.0,
+                    }
+                    level.max_items_per_facet = 3 if i == 1 else 2
+                    level.include_rehydration_prompt = False
+                levels.append(level)
+            compressor = CascadeCompressor(levels=levels)
+            capsule = compressor.compress(source)
+        elif args.model:
+            from .adaptive import AdaptiveCompressor
+
+            adaptive = AdaptiveCompressor()
+            result = adaptive.compress(
+                source,
+                model_name=args.model,
+                title=args.title,
+                include_rehydration_prompt=not args.no_rehydration_prompt,
+                include_loss_report=args.loss_report,
+                tokenizer_profile=args.tokenizer_profile,
+            )
+            if args.format == "json":
+                rendered = (
+                    result.capsule.to_json()
+                    if result.capsule
+                    else json.dumps({"text": result.text})
+                )
+            else:
+                rendered = result.text
+        else:
+            template = get_template(args.template)
+            config_kwargs = template.to_config_kwargs(token_budget=args.budget)
+            config_kwargs["title"] = args.title
+            config_kwargs["include_rehydration_prompt"] = not args.no_rehydration_prompt
+            config_kwargs["include_loss_report"] = args.loss_report
+            config_kwargs["tokenizer_profile"] = args.tokenizer_profile
+            config = CompressionConfig(**config_kwargs)
+
+            compressor = ContextDiamondCompressor(config)
+            capsule = compressor.compress(source)
+            rendered = capsule.to_json() if args.format == "json" else capsule.to_markdown()
     except (OSError, json.JSONDecodeError, TypeError, ValueError) as error:
         parser.error(str(error))
-
-    rendered = capsule.to_json() if args.format == "json" else capsule.to_markdown()
 
     if args.output:
         Path(args.output).write_text(rendered, encoding="utf-8")

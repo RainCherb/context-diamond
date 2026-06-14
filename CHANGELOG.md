@@ -19,6 +19,12 @@
 - **Progress notifications**: `batch_compress` sends progress updates during long-running operations.
 - **Enhanced documentation**: Updated `docs/opencode.md` with complete tool reference and examples.
 
+### Direct Token Savings
+- **Adaptive Compression**: `AdaptiveCompressor` auto-selects budget based on target LLM context window (GPT-4o, Claude, Gemini, Llama).
+- **Cascade Compression**: `CascadeCompressor` with 3-level aggressive squeeze (800 -> 400 -> 200 tokens).
+- **AutoCompressMiddleware**: Transparent message compression before LLM API calls with savings statistics.
+- **CLI**: Added `--model`, `--cascade`, `--cascade-levels` flags.
+
 ## 0.6.3 - 2026-06-14
 
 - Reworked README and repository positioning for a clearer GitHub landing page.

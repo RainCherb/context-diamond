@@ -115,6 +115,64 @@ Example benchmark output:
 constraints:1.00 decisions:1.00 risks:1.00 code:1.00
 ```
 
+## Direct Token Savings
+
+Context Diamond can automatically adapt compression to your target LLM's context
+window, apply multi-level cascade compression, or transparently intercept
+messages before they reach an API.
+
+### Adaptive Compression
+
+Compress only when text exceeds the model's usable context:
+
+```bash
+context-diamond long_handoff.md --model gpt-4o
+```
+
+Recognised models: `gpt-4o`, `gpt-4o-mini`, `claude-3-opus`, `claude-3-sonnet`,
+`claude-3-haiku`, `gemini-1.5-pro`, `gemini-1.5-flash`, `llama-3-70b`,
+`llama-3-8b`.
+
+```python
+from context_diamond import AdaptiveCompressor
+
+adaptive = AdaptiveCompressor()
+result = adaptive.compress(long_text, model_name="claude-3-opus")
+# result.was_compressed   -> True/False
+# result.original_tokens  -> 45000
+# result.final_tokens     -> 1800
+# result.text             -> capsule markdown or original
+```
+
+### Cascade Compression
+
+Multi-level aggressive squeeze (800 -> 400 -> 200 tokens):
+
+```bash
+context-diamond very_long_doc.md --cascade --cascade-levels 3
+```
+
+```python
+from context_diamond import CascadeCompressor
+
+cascade = CascadeCompressor()
+capsule = cascade.compress(extremely_long_text)
+```
+
+### Middleware (Transparent API Savings)
+
+Auto-compress messages before sending to an LLM:
+
+```python
+from context_diamond import AutoCompressMiddleware
+
+middleware = AutoCompressMiddleware(threshold_tokens=1200)
+compressed = middleware.compress_messages(messages, model_name="gpt-4o")
+# compressed messages have _compressed metadata
+print(middleware.savings_report())
+# {'tokens_saved': 42000, 'savings_percentage': 87.5}
+```
+
 ## The Pitch
 
 Generic summaries are cheap, but they often flatten the one thing you needed to
