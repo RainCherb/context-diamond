@@ -37,7 +37,12 @@ def estimate_tokens(text: str) -> int:
 
 
 def trim_to_token_budget(text: str, budget: int) -> str:
-    """Trim text without splitting in the middle of a token-like unit."""
+    """Trim text without splitting in the middle of a token-like unit.
+
+    The returned text never exceeds *budget* tokens. When trimming occurs, a
+    ``...`` ellipsis is appended (it occupies the final token slot) so callers
+    can see the content was cut. Text that already fits is returned unchanged.
+    """
 
     if budget <= 0:
         return ""
@@ -46,8 +51,10 @@ def trim_to_token_budget(text: str, budget: int) -> str:
     if len(pieces) <= budget:
         return text.strip()
 
-    clipped = " ".join(pieces[:budget]).strip()
-    return f"{clipped} ..."
+    # Reserve one slot for the ellipsis marker so the total stays within budget.
+    keep = max(budget - 1, 0)
+    clipped = " ".join(pieces[:keep]).strip()
+    return f"{clipped}..." if clipped else "..."
 
 
 def split_sentences(text: str) -> list[str]:

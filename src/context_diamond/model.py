@@ -65,6 +65,27 @@ class ContextCapsule:
             return 0.0
         return round(self.source_tokens / self.capsule_tokens, 2)
 
+    @property
+    def rendered_tokens(self) -> int:
+        """Honest token count of the full rendered markdown.
+
+        Unlike ``capsule_tokens`` (which only sums section content), this
+        includes the capsule header, strategy line, SHA-256, and section
+        headings — i.e. everything an LLM actually receives.
+        """
+        header_tokens = estimate_tokens(
+            f"# {self.title}\n"
+            f"- Strategy: `{self.strategy}`\n"
+            f"- Source tokens: `{self.source_tokens}`\n"
+            f"- Capsule tokens: `{self.capsule_tokens}`\n"
+            f"- Compression ratio: `{self.compression_ratio}x`\n"
+            f"- Source SHA-256: `{self.source_sha256[:16]}...`\n"
+        )
+        section_heading_tokens = sum(
+            estimate_tokens(f"## {section.title}") for section in self.sections
+        )
+        return header_tokens + self.capsule_tokens + section_heading_tokens
+
     @classmethod
     def digest_for(cls, text: str) -> str:
         return sha256(text.encode("utf-8")).hexdigest()
@@ -75,6 +96,7 @@ class ContextCapsule:
             "strategy": self.strategy,
             "source_tokens": self.source_tokens,
             "capsule_tokens": self.capsule_tokens,
+            "rendered_tokens": self.rendered_tokens,
             "compression_ratio": self.compression_ratio,
             "source_sha256": self.source_sha256,
             "metadata": self.metadata,
@@ -93,7 +115,7 @@ class ContextCapsule:
             "",
             f"- Strategy: `{self.strategy}`",
             f"- Source tokens: `{self.source_tokens}`",
-            f"- Capsule tokens: `{self.capsule_tokens}`",
+            f"- Capsule tokens: `{self.rendered_tokens}`",
             f"- Compression ratio: `{self.compression_ratio}x`",
             f"- Source SHA-256: `{self.source_sha256[:16]}...`",
             "",

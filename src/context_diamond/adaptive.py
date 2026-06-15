@@ -60,7 +60,7 @@ class AdaptiveResult:
 class AdaptiveCompressor:
     """Compress text only when it exceeds a model's usable context window.
 
-    The usable window is ``context_window - output_tokens - reserve_tokens``.
+    The usable window is ``context_window - max_output_tokens - reserve_tokens``.
     If the source fits, it is returned unchanged (identity pass-through).
     """
 
@@ -80,17 +80,23 @@ class AdaptiveCompressor:
     def get_budget(
         self,
         model_name: str,
-        source_tokens: int,
+        source_tokens: int = 0,
         reserve_tokens: int | None = None,
     ) -> int:
         """Return the token budget for *model_name*.
 
-        *reserve_tokens* defaults to ``context_window * default_reserve_ratio``.
+        The usable window is ``context_window - max_output_tokens - reserve_tokens``
+        where ``reserve_tokens`` defaults to ``context_window * default_reserve_ratio``.
+        The result is never smaller than ``min_budget``.
+
+        *source_tokens* is accepted for API symmetry and reserved for future
+        use (e.g. proportional reserves); it does not currently affect the result.
         """
+        del source_tokens  # reserved for future reserve calculations
         limit = self._get_limit(model_name)
         if reserve_tokens is None:
             reserve_tokens = int(limit.context_window * self.default_reserve_ratio)
-        budget = limit.context_window - reserve_tokens
+        budget = limit.context_window - limit.max_output_tokens - reserve_tokens
         return max(self.min_budget, budget)
 
     def should_compress(

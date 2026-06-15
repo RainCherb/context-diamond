@@ -62,9 +62,21 @@ class AutoCompressMiddleware:
 
         return result
 
+    def _exceeds_threshold(self, content: str) -> bool:
+        """Return ``True`` when *content* uses more tokens than the threshold.
+
+        The threshold is expressed in tokens (as the parameter name promises),
+        not in characters. A quick character pre-check avoids the cost of
+        tokenising content that is obviously short.
+        """
+
+        if len(content) < self.threshold:
+            return False
+        return estimate_tokens(content) >= self.threshold
+
     def compress_text(self, text: str, model_name: str = "default") -> str:
         """Compress a single text string if it exceeds the threshold."""
-        if len(text) < self.threshold or self._is_already_compressed(text):
+        if not self._exceeds_threshold(text) or self._is_already_compressed(text):
             return text
         result = self._compress_content(text, model_name)
         return result.text
@@ -93,7 +105,7 @@ class AutoCompressMiddleware:
                 continue
 
             self.stats.messages_processed += 1
-            if len(content) < self.threshold or self._is_already_compressed(content):
+            if not self._exceeds_threshold(content) or self._is_already_compressed(content):
                 self.stats.messages_skipped += 1
                 result.append(msg)
                 continue
@@ -119,7 +131,7 @@ class AutoCompressMiddleware:
         for item in content_list:
             if isinstance(item, dict) and item.get("type") == "text":
                 text = str(item.get("text", ""))
-                if len(text) >= self.threshold and not self._is_already_compressed(text):
+                if self._exceeds_threshold(text) and not self._is_already_compressed(text):
                     compressed = self._compress_content(text, model_name)
                     item = dict(item)
                     item["text"] = compressed.text

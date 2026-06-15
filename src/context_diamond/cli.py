@@ -138,31 +138,16 @@ def _main_compress(argv: list[str] | None = None, stdout: TextIO | None = None) 
         capsule: Any
         compressor: Any
         if args.cascade:
-            from .cascade import CascadeCompressor, CascadeLevel
+            from .cascade import CascadeCompressor
 
-            levels = []
-            budgets = [800, 400, 200]
-            for i in range(min(args.cascade_levels, len(budgets))):
-                level = CascadeLevel(
-                    token_budget=budgets[i],
-                    include_rehydration_prompt=(i == 0),
-                )
-                if i > 0:
-                    level.facet_weights = {
-                        "pulse": 0.0,
-                        "goal": 0.0,
-                        "constraints": 0.5,
-                        "decisions": 0.4,
-                        "facts": 0.0,
-                        "state": 0.1,
-                        "open_loops": 0.0,
-                        "glossary": 0.0,
-                    }
-                    level.max_items_per_facet = 3 if i == 1 else 2
-                    level.include_rehydration_prompt = False
-                levels.append(level)
+            levels = _build_cascade_levels(
+                start_budget=args.budget,
+                levels_count=args.cascade_levels,
+                include_rehydration_prompt=not args.no_rehydration_prompt,
+            )
             compressor = CascadeCompressor(levels=levels)
             capsule = compressor.compress(source)
+            rendered = capsule.to_json() if args.format == "json" else capsule.to_markdown()
         elif args.model:
             from .adaptive import AdaptiveCompressor
 
@@ -384,10 +369,16 @@ def _main_batch(argv: list[str] | None = None, stdout: TextIO | None = None) -> 
     compressor = ContextDiamondCompressor(config)
 
     expanded_paths: list[str] = []
+    unmatched_patterns: list[str] = []
     for pattern in args.inputs:
-        matches = stdlib_glob(pattern, recursive=True)
+        # Treat inputs that look like literal file paths (no glob metacharacters)
+        # as-is so users can point at files that happen to contain *, ?, etc.
+        has_glob_chars = any(ch in pattern for ch in "*?[")
+        matches = stdlib_glob(pattern, recursive=True) if has_glob_chars else []
         if matches:
             expanded_paths.extend(matches)
+        elif has_glob_chars and not Path(pattern).is_file():
+            unmatched_patterns.append(pattern)
         else:
             expanded_paths.append(pattern)
 
@@ -414,7 +405,68 @@ def _main_batch(argv: list[str] | None = None, stdout: TextIO | None = None) -> 
     stream.write(f"Batch processed {len(written)} file(s):\n")
     for w in written:
         stream.write(f"  {w}\n")
+    for pattern in unmatched_patterns:
+        stream.write(f"  warning: no files matched pattern {pattern!r}\n")
     return 0
+
+
+def _build_cascade_levels(
+    *,
+    start_budget: int,
+    levels_count: int,
+    include_rehydration_prompt: bool,
+) -> list[Any]:
+    """Build cascade levels derived from the user's budget and level count.
+
+    Each subsequent level halves the budget of the previous one and focuses on
+    the facets that matter most under tight space (constraints, decisions,
+    state). Unlike the previous hardcoded ``[800, 400, 200]`` list, this honours
+    ``--budget`` and produces exactly ``levels_count`` levels.
+    """
+
+    from .cascade import CascadeLevel
+
+    if levels_count < 1:
+        levels_count = 1
+
+    levels: list[Any] = []
+    budget = max(start_budget, 64)
+    for index in range(levels_count):
+        weights = {
+            "pulse": 0.12,
+            "goal": 0.14,
+            "constraints": 0.16,
+            "decisions": 0.16,
+            "facts": 0.11,
+            "state": 0.15,
+            "open_loops": 0.12,
+            "glossary": 0.04,
+        }
+        max_items = 6
+        rehydration = include_rehydration_prompt and index == 0
+        if index > 0:
+            # Tighter levels drop fluff and prioritise hard signal.
+            weights = {
+                "pulse": 0.00,
+                "goal": 0.00,
+                "constraints": 0.50,
+                "decisions": 0.40,
+                "facts": 0.00,
+                "state": 0.10,
+                "open_loops": 0.00,
+                "glossary": 0.00,
+            }
+            max_items = max(2, 6 - index * 2)
+        levels.append(
+            CascadeLevel(
+                token_budget=max(budget, 32),
+                facet_weights=weights,
+                max_items_per_facet=max_items,
+                include_rehydration_prompt=rehydration,
+            )
+        )
+        budget = max(budget // 2, 32)
+    return levels
 
 
 def _read_input(input_path: str) -> str:

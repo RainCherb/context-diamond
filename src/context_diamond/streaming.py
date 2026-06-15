@@ -110,6 +110,7 @@ class StreamingCompressor:
                 "include_rehydration_prompt": self.config.include_rehydration_prompt,
                 "include_loss_report": self.config.include_loss_report,
                 "tokenizer_profile": self.config.tokenizer_profile,
+                "facet_weights": dict(self.config.facet_weights),
             },
         }
 
@@ -117,14 +118,20 @@ class StreamingCompressor:
     def from_dict(cls, data: dict[str, Any]) -> StreamingCompressor:
         """Restore a streaming compressor from a serialized state dict."""
         config_data = data.get("config", {})
-        config = CompressionConfig(
-            token_budget=config_data.get("token_budget", 800),
-            title=config_data.get("title", "Context Diamond Capsule"),
-            max_items_per_facet=config_data.get("max_items_per_facet", 6),
-            include_rehydration_prompt=config_data.get("include_rehydration_prompt", True),
-            include_loss_report=config_data.get("include_loss_report", False),
-            tokenizer_profile=config_data.get("tokenizer_profile", "generic"),
-        )
+        config_kwargs: dict[str, Any] = {
+            "token_budget": config_data.get("token_budget", 800),
+            "title": config_data.get("title", "Context Diamond Capsule"),
+            "max_items_per_facet": config_data.get("max_items_per_facet", 6),
+            "include_rehydration_prompt": config_data.get("include_rehydration_prompt", True),
+            "include_loss_report": config_data.get("include_loss_report", False),
+            "tokenizer_profile": config_data.get("tokenizer_profile", "generic"),
+        }
+        # Restore custom facet weights when present so round-trips preserve
+        # template/programmatic tuning instead of silently resetting it.
+        facet_weights = config_data.get("facet_weights")
+        if isinstance(facet_weights, dict):
+            config_kwargs["facet_weights"] = dict(facet_weights)
+        config = CompressionConfig(**config_kwargs)
         instance = cls(config)
         raw_messages = data.get("messages", [])
         messages: list[dict[str, str | None]] = []

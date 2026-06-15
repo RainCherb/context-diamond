@@ -100,8 +100,16 @@ class CascadeCompressor:
         return CompressionConfig(**kwargs)
 
     def compress(self, text: str) -> ContextCapsule:
-        """Run the cascade and return the final capsule."""
-        result_text = text
+        """Run the cascade and return the final capsule.
+
+        The returned capsule keeps the ``source_tokens`` and ``source_sha256``
+        of the *original* input rather than of an intermediate level's markdown,
+        so auditability is preserved across the cascade.
+        """
+        original_sha = ContextCapsule.digest_for(text)
+        original_tokens = estimate_tokens(text)
+
+        result_text: str = text
         for level in self.levels:
             current_tokens = estimate_tokens(result_text)
             # Early exit if already fits
@@ -109,7 +117,8 @@ class CascadeCompressor:
                 if hasattr(result_text, "to_markdown"):
                     return result_text  # type: ignore[return-value]
                 config = self._build_config(level)
-                return ContextDiamondCompressor(config).compress(result_text)
+                capsule = ContextDiamondCompressor(config).compress(result_text)
+                return _with_original_provenance(capsule, original_tokens, original_sha)
 
             config = self._build_config(level)
             capsule = ContextDiamondCompressor(config).compress(result_text)
@@ -117,6 +126,33 @@ class CascadeCompressor:
 
         # If the loop finishes without early return, the last capsule is the result
         if hasattr(result_text, "to_markdown"):
-            return result_text  # type: ignore[return-value]
+            return _with_original_provenance(
+                result_text,  # type: ignore[arg-type]
+                original_tokens,
+                original_sha,
+            )
         config = self._build_config(self.levels[-1])
-        return ContextDiamondCompressor(config).compress(result_text)
+        capsule = ContextDiamondCompressor(config).compress(result_text)
+        return _with_original_provenance(capsule, original_tokens, original_sha)
+
+
+def _with_original_provenance(
+    capsule: ContextCapsule,
+    source_tokens: int,
+    source_sha256: str,
+) -> ContextCapsule:
+    """Return *capsule* with source tokens/sha pinned to the original input."""
+
+    metadata = dict(capsule.metadata)
+    metadata["cascade_source_tokens"] = capsule.source_tokens
+    metadata["cascade_source_sha256"] = capsule.source_sha256
+    metadata["cascade"] = True
+    return ContextCapsule(
+        title=capsule.title,
+        sections=capsule.sections,
+        source_tokens=source_tokens,
+        capsule_tokens=capsule.capsule_tokens,
+        source_sha256=source_sha256,
+        strategy=capsule.strategy,
+        metadata=metadata,
+    )

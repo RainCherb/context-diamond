@@ -7,10 +7,6 @@ default package zero-dependency.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 # Re-use the default regex-based estimator for generic fallback
 from .tokenizer import estimate_tokens, trim_to_token_budget
