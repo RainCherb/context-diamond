@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#091520">
+  <meta name="description" content="AI Process Pilot — локальная интеллектуальная маршрутизация клиентских обращений, AI-автоматизация и оценка экономического эффекта.">
+  <title>AI Process Pilot — AI-автоматизация для бизнеса</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="#overview" aria-label="AI Process Pilot">
+        <span class="brand-symbol"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5 24 16 5l11 19H5Z" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M10 20h12M13 15h6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span>
+        <span>process<span class="brand-bright">pilot</span><small>AI WORKSPACE</small></span>
+      </a>
+      <div class="sidebar-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+      <nav class="nav" aria-label="Навигация">
+        <a class="nav-item active" href="#overview"><span class="nav-icon">▦</span> Обзор <span class="nav-caret">↗</span></a>
+        <a class="nav-item" href="#inbox"><span class="nav-icon">▤</span> Очередь обращений</a>
+        <a class="nav-item" href="#simulator"><span class="nav-icon">✧</span> AI-анализатор</a>
+        <a class="nav-item" href="#economics"><span class="nav-icon">◈</span> Экономика ИИ</a>
+      </nav>
+      <div class="sidebar-label integrations-label">ИНТЕГРАЦИИ</div>
+      <div class="integration-item"><span class="integration-signal"></span> Offline Engine <span class="integrations-tag">ACTIVE</span></div>
+      <div class="integration-item"><span class="integration-symbol">↗</span> MCP Tools <span class="integrations-tag pale">READY</span></div>
+      <div class="sidebar-bottom">
+        <div class="server-status"><span class="status-dot"></span><div><strong>Локальный режим</strong><small>Данные остаются в этом сервисе</small></div></div>
+        <p>Пилотный проект для демонстрации автоматизации. Не предназначен для публичного доступа без аутентификации.</p>
+      </div>
+    </aside>
+
+    <main class="main" id="overview">
+      <header class="topbar"><div class="breadcrumb">Workspace <span>/</span> <strong>Overview</strong></div><div class="top-actions"><span class="version">v1.0 • OPEN SOURCE</span><a href="/docs" target="_blank" rel="noreferrer" class="top-link">API Docs ↗</a></div></header>
+      <div class="content">
+        <div class="eyebrow"><span class="eyebrow-dot"></span> СИСТЕМА ИИ-АВТОМАТИЗАЦИИ</div>
+        <div class="heading-row"><div><h1>Команда работает.<br><em>Рутина — на автопилоте.</em></h1><p class="lead">Обращения → классификация → нужная команда → решение. Один прозрачный процесс вместо ручной сортировки.</p></div><div class="hero-ornament" aria-hidden="true"><div class="orb orb-a"></div><div class="orb orb-b"></div><div class="orb orb-c"></div><div class="orb-core">✳</div></div></div>
+        <div class="intro-strip"><span class="strip-mark">◎</span> <strong>Human-in-the-loop</strong> <span>ИИ предлагает маршрут и действие. Окончательное решение — за сотрудником.</span><span class="chip chip-live" id="mode-chip">OFFLINE</span></div>
+
+        <section class="metric-grid" aria-label="Ключевые показатели">
+          <article class="metric-card"><span class="metric-top">Всего обращений <span>↗</span></span><div class="metric-value" id="stat-total">0</div><div class="metric-foot"><span class="mini-dot turquoise"></span> Обработано системой</div></article>
+          <article class="metric-card"><span class="metric-top">Высокий приоритет <span>⚑</span></span><div class="metric-value" id="stat-urgent">0</div><div class="metric-foot"><span class="mini-dot orange"></span> Нуждаются в проверке</div></article>
+          <article class="metric-card"><span class="metric-top">Оценка сэкономленного времени <span>◷</span></span><div class="metric-value"><span id="stat-time">0</span><span class="metric-unit"> мин</span></div><div class="metric-foot"><span class="mini-dot violet"></span> Модельное допущение</div></article>
+          <article class="metric-card"><span class="metric-top">Расход на API <span>⌁</span></span><div class="metric-value"><span class="dollar">$</span><span id="stat-cost">0.00</span></div><div class="metric-foot"><span class="mini-dot light"></span> По отчётам моделей</div></article>
+        </section>
+
+        <section class="workspace-grid">
+          <article class="panel create-panel" id="simulator">
+            <div class="panel-heading"><div><span class="panel-kicker">01 / ИНТЕЛЛЕКТУАЛЬНЫЙ ВХОД</span><h2>Обработать обращение <span class="sparkle">✦</span></h2></div><span class="panel-label">AI TRIAGE</span></div>
+            <p class="panel-muted">Вставьте сообщение клиента. Система определит тему, приоритет, ответственную команду и следующий шаг.</p>
+            <form id="analyze-form"><label class="field-label" for="ticket-text">ТЕКСТ ОБРАЩЕНИЯ</label><textarea id="ticket-text" minlength="5" maxlength="8000" required placeholder="Например: Срочно! Не проходит оплата заказа, клиент ждёт ответа..." spellcheck="true"></textarea>
+              <div class="form-row"><label class="inline-label" for="source">ИСТОЧНИК</label><select id="source"><option value="web">Веб-форма</option><option value="telegram">Telegram</option><option value="email">Email</option><option value="crm">CRM</option></select><label class="toggle-wrap"><input type="checkbox" id="use-llm" disabled><span class="toggle-design"></span> Дополнить через LLM</label></div>
+              <div class="form-bottom"><div class="privacy-note">◉ Email и телефоны маскируются до сохранения</div><button class="button-primary" id="analyze-button" type="submit"><span>Обработать с ИИ</span> <span>↗</span></button></div>
+            </form><div id="form-feedback" class="feedback" role="status" aria-live="polite" hidden></div>
+          </article>
+          <article class="panel flow-panel"><div class="panel-heading"><div><span class="panel-kicker">02 / АВТОМАТИЗАЦИЯ</span><h2>Как это работает</h2></div></div>
+            <div class="pipeline"><div class="flow-step"><span class="flow-bubble flow-turquoise">01</span><div><strong>Получаем запрос</strong><p>Сообщение из формы или API</p></div><span class="flow-check">✓</span></div><div class="flow-line"></div><div class="flow-step"><span class="flow-bubble flow-lime">02</span><div><strong>Определяем контекст</strong><p>Категория, важность, защита контактов</p></div><span class="flow-check">✓</span></div><div class="flow-line"></div><div class="flow-step"><span class="flow-bubble flow-purple">03</span><div><strong>Назначаем команду</strong><p>Прозрачные правила и объяснение</p></div><span class="flow-check">✓</span></div><div class="flow-line"></div><div class="flow-step"><span class="flow-bubble flow-orange">04</span><div><strong>Передаём человеку</strong><p>Черновик рекомендации и проверка</p></div><span class="flow-check">✓</span></div></div>
+            <div class="flow-endnote"><span>✳</span><p>Опциональный LLM API подключается только через явную конфигурацию. Без ключа работает полностью.</p></div>
+          </article>
+        </section>
+
+        <section class="panel queue-panel" id="inbox"><div class="queue-header"><div><span class="panel-kicker">03 / ОПЕРАЦИОННЫЙ ЦЕНТР</span><h2>Очередь обращений <span id="queue-count" class="counter">0</span></h2></div><div class="queue-actions"><select id="filter" aria-label="Фильтр приоритета"><option value="all">Все обращения</option><option value="high">Высокий приоритет</option><option value="medium">Средний приоритет</option><option value="low">Низкий приоритет</option></select><button id="demo-button" class="button-outline" type="button">+ Загрузить демо</button></div></div>
+          <div class="table-scroll"><table><thead><tr><th>ОБРАЩЕНИЕ</th><th>КАТЕГОРИЯ</th><th>ПРИОРИТЕТ</th><th>КОМАНДА</th><th>СТАТУС</th><th></th></tr></thead><tbody id="ticket-rows"><tr><td colspan="6" class="empty">Пока нет обращений. Создайте первое или загрузите демо.</td></tr></tbody></table></div>
+          <div id="ticket-detail" class="detail" hidden></div>
+        </section>
+
+        <section class="economics-grid" id="economics"><div class="panel roi-panel"><div class="panel-heading"><div><span class="panel-kicker">04 / БИЗНЕС-МЕТРИКИ</span><h2>Экономика автоматизации</h2></div></div><p class="panel-muted">Моделирование потенциальной выгоды. Не является подтверждением реальной экономии.</p><div class="roi-fields"><label>Минут на одно обращение<input id="roi-minutes" type="number" min="0" max="240" step="0.5" value="4"></label><label>Стоимость часа сотрудника, ₽<input id="roi-rate" type="number" min="0" max="1000000" step="50" value="900"></label></div><div class="roi-output"><div><span>ПОТЕНЦИАЛЬНАЯ СТОИМОСТЬ ВРЕМЕНИ</span><strong id="roi-value">0 ₽</strong></div><span class="roi-mark">↗</span></div><p class="tiny">Без вычета стоимости API, инфраструктуры и проверки оператором. Показатели USD и RUB не смешиваются.</p></div>
+        <div class="panel config-panel"><span class="panel-kicker">ПРОЗРАЧНОСТЬ И КОНТРОЛЬ</span><h2>ИИ — под вашим контролем.</h2><div class="config-caps"><span>◎ LOCAL FIRST</span><span>⌁ MCP READY</span><span>◈ REST API</span></div><p>Режим offline — без обращения к внешним моделям. При подключении OpenAI-compatible API используются настроенные вами тарифы, а не выдуманные «текущие» цены.</p><div class="config-footer"><span class="green-dot"></span><span id="config-status">Локальная обработка активна</span><a href="/docs" target="_blank" rel="noreferrer">Документация API ↗</a></div></div></section>
+        <footer class="footer"><span>PROCESSPILOT / 2026</span><span>Практика внедрения ИИ • Тестовый контур • Human-in-the-loop</span></footer>
+      </div>
+    </main>
+  </div>
+  <script src="/app.js" defer></script>
+</body>
+</html>
