@@ -1,5 +1,7 @@
 # Context Diamond v0.7.0
 
+> **Portfolio / Портфолио:** [AI Integration & AI-assisted Development — проекты на русском](docs/portfolio-ru.md)
+
 > Stop pasting the same messy context into every LLM. Turn chats, logs, issues,
 > agent state, and docs into small, auditable context capsules.
 
