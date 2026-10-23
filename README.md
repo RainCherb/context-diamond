@@ -1,371 +1,144 @@
-# Context Diamond v0.7.0
+# AI Process Pilot
 
-> **Portfolio / Портфолио:** [AI Integration & AI-assisted Development — проекты на русском](docs/portfolio-ru.md)
+**AI-интеграция для бизнеса на практике: маршрутизация обращений, локальная обработка, MCP, REST API и расчёт предполагаемой стоимости ручной работы.**
 
-> Stop pasting the same messy context into every LLM. Turn chats, logs, issues,
-> agent state, and docs into small, auditable context capsules.
+> Портфолио AI Automation / AI-assisted Development. Самостоятельный проект, а не кейс внедрения у реального заказчика.
 
-[![CI](https://github.com/RainCherb/context-diamond/actions/workflows/ci.yml/badge.svg)](https://github.com/RainCherb/context-diamond/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](pyproject.toml)
-[![No API Keys](https://img.shields.io/badge/API%20keys-not%20required-brightgreen.svg)](docs/architecture.md)
-[![OpenCode MCP](https://img.shields.io/badge/OpenCode-MCP%20ready-purple.svg)](docs/opencode.md)
+[![CI](https://img.shields.io/badge/CI-Python%203.11--3.13-203d35)](.github/workflows/ci.yml) ![Offline by default](https://img.shields.io/badge/mode-offline%20by%20default-68b8a0) ![Python](https://img.shields.io/badge/Python-3.11%2B-3677a2) ![License](https://img.shields.io/badge/license-MIT-a0baca)
 
-Context Diamond v0.7.0 is a deterministic context compression and handoff toolkit for
-LLM agents.
-It extracts the things models keep losing in long conversations:
+**Что это:** рабочая система первичной обработки входящих клиентских запросов. Получает сообщение, определяет категорию и срочность, предлагает ответственную команду и дальнейшее действие, сохраняет обезличенную часть информации, показывает очередь и условную экономику процесса.
 
-- goals and success criteria
-- hard constraints
-- decisions already made
-- current working state
-- open questions and risks
-- files, symbols, entities, and anchors
+**Почему проект подходит бизнесу:** вместо общего «знания нейросетей» демонстрирует полный цикл: выбор сценария автоматизации → сервис и интерфейс → API → стоимость → контроль человека → документация и внедрение.
 
-It is built for developers who switch between coding agents, OpenCode, chat UIs,
-RAG pipelines, issue threads, and local notes. The default engine is offline,
-zero-dependency, inspectable, and safe to run before any text is sent to an LLM.
+## Возможности
 
-## Why People Click This
+- **Рабочий интерфейс на русском:** очередь обращений, приоритеты, статус выполнения, причины маршрутизации.
+- **Демо без ключей:** рабочий rules-based движок определяет тематику и важность офлайн, без запросов во внешние AI-сервисы.
+- **LLM только по желанию:** OpenAI-compatible API (например, локальный Ollama с совместимым интерфейсом); модель формирует дополнительное предложение действия, но **не может менять категорию или приоритет**.
+- **MCP:** три инструмента для AI coding agents: предварительная классификация, очередь и метрики (stdio, отдельный процесс).
+- **API:** FastAPI, Pydantic, Swagger `/docs`, SQLite.
+- **Сценарный ROI-калькулятор:** показывает стоимость предполагаемого высвобождения времени и отдельно API-расходы; не выдаёт предположения за достигнутую экономию.
+- **Осторожность с данными:** до записи в БД маскируются типовые email и российские номера телефонов. Это **не полная анонимизация**.
+- **Готов к демонстрации:** Docker Compose, тесты, CI, обучающий план для сотрудников и бизнес-кейс.
 
-Most LLM context tools promise "memory". Context Diamond gives you a portable
-handoff artifact you can read, diff, benchmark, paste, store, or feed to another
-agent.
+## Быстрый запуск (Python)
 
-Use it when you want to:
-
-- recover signal from noisy agent sessions
-- reduce repeated prompt/context cost
-- preserve constraints before handing work to another model
-- keep decisions visible instead of buried in a paragraph summary
-- audit what got dropped with a loss report
-- expose compression as an OpenCode MCP tool
-
-## 60-Second Demo
-
-Install from GitHub:
+Требуется Python 3.11+. Скопируйте репозиторий и выполните:
 
 ```bash
-pip install git+https://github.com/RainCherb/context-diamond.git
+python -m venv .venv
+# Linux/macOS:
+source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -e .
+processpilot
 ```
 
-Compress a long handoff:
+Откройте **http://127.0.0.1:8000** и нажмите «Загрузить демо». Данные сохраняются локально в `data/processpilot.sqlite3`. По умолчанию никакой API-ключ не нужен.
+
+### Docker
 
 ```bash
-context-diamond examples/long_handoff.md --budget 320 --title "Sprint Handoff"
+docker compose up --build
 ```
 
-Get JSON with an audit trail:
+Откройте http://127.0.0.1:8000. Docker Compose привязывает порт только к localhost и сохраняет SQLite в именованном volume.
+
+## Пример REST API
 
 ```bash
-context-diamond examples/long_handoff.md --format json --loss-report
+curl -X POST http://127.0.0.1:8000/api/tickets \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"Срочно! Не проходит оплата заказа, сервис не работает","source":"crm"}'
+
+curl http://127.0.0.1:8000/api/stats
 ```
 
-Benchmark it against dumb head/tail clipping:
+Ключевые конечные точки:
+
+| HTTP | Путь | Назначение |
+| --- | --- | --- |
+| POST | `/api/tickets` | Классификация и запись обращения |
+| GET | `/api/tickets` | Очередь и результаты |
+| GET | `/api/tickets/{id}` | Детали и объяснение |
+| PATCH | `/api/tickets/{id}/status?status=resolved` | Обновление статуса человеком |
+| GET | `/api/stats` | Сводка процесса |
+| POST | `/api/roi` | Сценарная оценка стоимости времени |
+| POST | `/api/demo/seed` | Шесть тестовых обращений, без повторной загрузки |
+| GET | `/api/health` | Проверка режима и доступности |
+
+## Интеграция с LLM (необязательная)
+
+По умолчанию приложение полностью офлайн. Для использования OpenAI-compatible провайдера задайте **на сервере**:
 
 ```bash
-context-diamond-bench examples/long_handoff.md --budget 320
+export PILOT_MODE=remote
+export PILOT_LLM_BASE_URL=http://127.0.0.1:11434/v1
+export PILOT_LLM_MODEL=qwen2.5:7b
+export PILOT_LLM_API_KEY=
+# Для расчёта API-расходов — собственные примерные ставки, USD / 1 млн токенов:
+export PILOT_INPUT_USD_PER_1M=0.25
+export PILOT_OUTPUT_USD_PER_1M=1.00
 ```
 
-Inspect why shards were selected:
+Запустите приложение. Если указан провайдер, в форме станет доступен переключатель «Дополнить через LLM». При использовании API программно укажите `
+`"use_llm": true`. `remote` — не синоним облака: совместимый endpoint может работать локально. **Тарифы в примере не являются актуальными ценами конкретной модели.** Системе требуется доверенный endpoint; не используйте непроверенный URL.
+
+Для провайдеров с особенностями API может потребоваться адаптер. В случае ошибки модельного API запрос возвращает 502 и не создаёт запись с невалидным результатом.
+
+## MCP: инструменты для AI-агентов
 
 ```bash
-ctxd explain examples/long_handoff.md
+python -m pip install -e '.[mcp]'
+python -m processpilot.mcp_server
 ```
 
-Build a capsule from a repository:
-
-```bash
-ctxd repo . --budget 1200
-```
-
-Compare or merge capsules as the handoff evolves:
-
-```bash
-ctxd diff old_capsule.json new_capsule.json
-ctxd merge chat.json repo.json issue.json --budget 900
-```
-
-Batch-process multiple files:
-
-```bash
-ctxd batch notes/*.md --output-dir capsules/ --budget 400 --template coding
-```
-
-Use a domain-specific template:
-
-```bash
-context-diamond incident_report.md --template incident --budget 500
-```
-
-Stream capsules incrementally:
-
-```python
-from context_diamond import StreamingCompressor
-
-streamer = StreamingCompressor()
-streamer.add_message("Goal: build a login form.")
-streamer.add_message("Decision: use JWT tokens.")
-capsule = streamer.current_capsule
-```
-
-Example benchmark output:
-
-```text
-535 source tokens -> 387 rendered capsule tokens
-1.38x ratio
-constraints:1.00 decisions:1.00 risks:1.00 code:1.00
-```
-
-## Direct Token Savings
-
-Context Diamond can automatically adapt compression to your target LLM's context
-window, apply multi-level cascade compression, or transparently intercept
-messages before they reach an API.
-
-### Adaptive Compression
-
-Compress only when text exceeds the model's usable context:
-
-```bash
-context-diamond long_handoff.md --model gpt-4o
-```
-
-Recognised models: `gpt-4o`, `gpt-4o-mini`, `claude-3-opus`, `claude-3-sonnet`,
-`claude-3-haiku`, `gemini-1.5-pro`, `gemini-1.5-flash`, `llama-3-70b`,
-`llama-3-8b`.
-
-```python
-from context_diamond import AdaptiveCompressor
-
-adaptive = AdaptiveCompressor()
-result = adaptive.compress(long_text, model_name="claude-3-opus")
-# result.was_compressed   -> True/False
-# result.original_tokens  -> 45000
-# result.final_tokens     -> 1800
-# result.text             -> capsule markdown or original
-```
-
-### Cascade Compression
-
-Multi-level aggressive squeeze (800 -> 400 -> 200 tokens):
-
-```bash
-context-diamond very_long_doc.md --cascade --cascade-levels 3
-```
-
-```python
-from context_diamond import CascadeCompressor
-
-cascade = CascadeCompressor()
-capsule = cascade.compress(extremely_long_text)
-```
-
-### Middleware (Transparent API Savings)
-
-Auto-compress messages before sending to an LLM:
-
-```python
-from context_diamond import AutoCompressMiddleware
-
-middleware = AutoCompressMiddleware(threshold_tokens=1200)
-compressed = middleware.compress_messages(messages, model_name="gpt-4o")
-# compressed messages have _compressed metadata
-print(middleware.savings_report())
-# {'tokens_saved': 42000, 'savings_percentage': 87.5}
-```
-
-## The Pitch
-
-Generic summaries are cheap, but they often flatten the one thing you needed to
-keep. Context Diamond keeps the handoff structured:
-
-| Problem | Context Diamond answer |
-| --- | --- |
-| "The model forgot the rules." | Rules live in their own section. |
-| "We reopened an old decision." | Decisions are extracted separately. |
-| "The transcript is mostly noise." | Noise is scored down and shown in loss reports. |
-| "I need this in OpenCode." | Run it as a local MCP server. |
-| "I do not want another API bill." | No runtime API calls by default. |
-
-## OpenCode MCP
-
-Add Context Diamond to OpenCode as a local MCP server:
+Пример конфигурации для MCP-клиента:
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "context_diamond": {
-      "type": "local",
-      "command": ["context-diamond-mcp"],
-      "enabled": true,
-      "timeout": 30000
+  "mcpServers": {
+    "processpilot": {
+      "command": "python",
+      "args": ["-m", "processpilot.mcp_server"]
     }
   }
 }
 ```
 
-OpenCode tools (prefixed with `context_diamond_`):
+Инструменты: `preview_ticket(text)` — предварительный разбор без сохранения; `get_work_queue(limit)` — чтение очереди; `get_process_metrics()` — статистика. MCP использует тот же `PILOT_DB`, что и веб-сервис. Формат конфигурации конкретного MCP-клиента может отличаться.
 
-- **Compression**: `compress_text`, `compress_file`, `batch_compress`
-- **Explainability**: `explain_text`
-- **Repository**: `repo_capsule`
-- **Benchmark**: `benchmark_file`
-- **Streaming**: `streaming_add`, `streaming_get`, `streaming_reset`
-- **Discovery**: `list_templates`, `list_tokenizers`, `get_template_info`
+## Экономика: что считается, а что нет
 
-See [docs/opencode.md](docs/opencode.md).
+Пример с 2 000 обращений × 4 минуты × 900 ₽/час = **120 000 ₽ предполагаемой стоимости высвобожденного времени**. Это не факт экономии и не прогноз продаж. Расходы на разработку, оценку ответов, хостинг и API надо считать отдельно; расходы API в USD не пересчитываются автоматически в рубли.
 
-## CLI
+Подробнее: [бизнес-кейс](docs/business-case-ru.md).
 
-```bash
-# Markdown capsule
-context-diamond notes.md --budget 500 --output capsule.md
+## Технологии
 
-# JSON capsule for automation
-context-diamond notes.md --format json --loss-report --output capsule.json
+**Backend:** Python 3.11+, FastAPI, Pydantic, SQLite, httpx. **Frontend:** HTML, CSS, JavaScript без внешних зависимостей. **Интеграции:** optional OpenAI-compatible LLM, MCP / FastMCP. **Доставка:** Docker, Docker Compose, GitHub Actions, pytest.
 
-# Explain shard scoring
-ctxd explain notes.md
+## Документация
 
-# Repository capsule
-ctxd repo . --budget 1200
+- [Архитектура и ограничения](docs/architecture.md)
+- [Правила безопасного использования (обязательно перед production)](docs/security-ru.md)
+- [План обучения сотрудников на 5 дней](docs/employee-training-ru.md)
+- [Пилот внедрения и оценка стоимости](docs/business-case-ru.md)
 
-# Capsule evolution
-ctxd diff old.json new.json
-ctxd merge chat.json repo.json --output merged.md
-
-# Stdin
-type notes.md | context-diamond - --budget 350
-
-# Precise tokenizers (optional extras)
-context-diamond notes.md --tokenizer tiktoken --budget 500
-```
-
-Use a JSON message list:
+## Проверка качества
 
 ```bash
-context-diamond conversation.json --messages-json --format json
+python -m pip install -e '.[dev]'
+pytest -q
+ruff check --select F src tests
 ```
 
-```json
-[
-  {"role": "user", "content": "Build a local context compressor."},
-  {"role": "assistant", "content": "Decision: use deterministic extraction first."}
-]
-```
+## Границы проекта
 
-## Python API
+Это **работающий MVP для демонстраций и локальных пилотов**. В нём нет корпоративной аутентификации, многопользовательских прав, полноценной анонимизации персональных данных, готового Telegram/CRM-коннектора или подтверждённых бизнес-метрик. Не открывайте HTTP-сервис напрямую в интернет и не передавайте в него реальные чувствительные данные без доработки и согласования политики хранения. Подробнее в [security-ru.md](docs/security-ru.md).
 
-```python
-from context_diamond import CompressionConfig, ContextDiamondCompressor
+**Авторство и подход:** самостоятельный портфолио-проект, созданный с применением AI-assisted development. Ключевой навык — проектирование задач, выбор подходящих инструментов, проверка результата и интеграция компонентов.
 
-text = """
-Goal: reduce token waste in LLM handoffs.
-The tool must run locally and avoid API keys by default.
-Decision: emit markdown and JSON capsules.
-"""
+## Лицензия
 
-compressor = ContextDiamondCompressor(CompressionConfig(token_budget=220))
-capsule = compressor.compress(text)
-
-print(capsule.to_markdown())
-```
-
-Integration helpers:
-
-```python
-from context_diamond import compress_documents, compress_messages, compress_tool_payload
-```
-
-See [docs/integrations.md](docs/integrations.md).
-
-## What The Capsule Looks Like
-
-```markdown
-# Context Diamond Capsule
-
-- Strategy: `diamond-v1`
-- Source tokens: `535`
-- Capsule tokens: `315`
-- Compression ratio: `1.7x`
-
-## Diamond Pulse
-- The strongest signals from the source.
-
-## Rules And Constraints
-- Requirements that should not be violated.
-
-## Decisions Already Made
-- Choices that should not be reopened accidentally.
-
-## Open Questions And Risks
-- Unresolved items that need attention.
-```
-
-## Why This Over X
-
-Context Diamond is not trying to replace every prompt compressor, RAG compressor,
-or memory store. It is best at one job:
-
-> create auditable context capsules for LLM and coding-agent handoffs.
-
-Read the honest comparison in [docs/why-context-diamond.md](docs/why-context-diamond.md).
-
-## Features
-
-- **Offline by default**: no hidden network calls.
-- **Zero runtime dependencies**: install it into boring environments.
-- **OpenCode-ready**: ships a local stdio MCP server.
-- **Benchmarkable**: compare against deterministic clipping baselines.
-- **Auditable**: optional loss report shows omitted shards.
-- **Explainable**: `ctxd explain` shows shard facets, scores, tokens, and reasons.
-- **Repo-aware**: `ctxd repo` captures branch, git state, and selected files.
-- **Composable capsules**: `ctxd diff` and `ctxd merge` support handoff evolution.
-- **Structured**: goals, rules, decisions, facts, state, risks, anchors.
-- **Composable**: CLI, Python API, JSON output, adapters, MCP.
-- **Precise tokenizers**: optional `tiktoken`, `anthropic`, and `transformers` adapters.
-- **Templates**: domain-specific presets (`coding`, `support`, `research`, `incident`).
-- **Streaming**: `StreamingCompressor` for incremental capsule updates.
-- **Batch processing**: `ctxd batch` for multiple files.
-
-## Docs
-
-- [OpenCode integration](docs/opencode.md)
-- [Benchmarks](docs/benchmarks.md)
-- [Integrations](docs/integrations.md)
-- [Algorithm](docs/algorithm.md)
-- [Architecture](docs/architecture.md)
-- [Use cases](docs/use-cases.md)
-
-## Local Development
-
-```bash
-git clone https://github.com/RainCherb/context-diamond.git
-cd context-diamond
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install -e ".[dev]"
-python -m pytest
-python -m ruff check .
-```
-
-On macOS or Linux, activate with `source .venv/bin/activate`.
-
-## Roadmap
-
-- Larger public benchmark corpus with task-level answer quality checks.
-- Domain-adapted embedding reranker profiles.
-- More first-class agent adapters: GitHub issues, Linear, Slack, Markdown logs.
-- Extended plugin hooks for custom facet detection and scoring.
-- PyPI release after the public API stabilizes.
-
-## Star This If
-
-- you lose context when switching between LLM tools
-- you want OpenCode agents to compress handoffs before continuing
-- you prefer inspectable local tools over another black-box summarizer
-- you like boring, deterministic software that saves expensive tokens
-
-MIT licensed. Built to be small, honest, and useful.
+MIT — см. [LICENSE](LICENSE).

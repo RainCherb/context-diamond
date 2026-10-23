@@ -1,0 +1,13 @@
+services:
+  processpilot:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      PILOT_MODE: offline
+      PILOT_DB: /data/processpilot.sqlite3
+    volumes:
+      - pilot-data:/data
+    restart: unless-stopped
+volumes:
+  pilot-data:

@@ -1,72 +1,48 @@
-# Architecture
+# Архитектура / Architecture
 
-Context Diamond is built around a small deterministic pipeline:
+## Overview
 
 ```text
-source text/messages
-  -> sentence shards with facet detection and scoring
-  -> plugin refinement
-  -> optional reranking
-  -> budgeted facet selection
-  -> optional loss report
-  -> capsule rendering
+Web dashboard / REST clients / MCP-capable coding agents
+           |            |            |
+           | HTTP       | HTTP       | stdio MCP
+           v            v            v
+      FastAPI routes                  FastMCP (optional)
+             |                         |
+             +---- Rule engine --------+
+             |      masking + triage    |
+             |                         |
+             +---- SQLite store -------+
+             |
+             +---- Optional remote-compatible LLM (explicit opt-in)
+                           |
+                    action suggestion only
 ```
 
-## Modules
+### Important design decisions
 
-- `tokenizer.py` estimates local token budgets and splits source text.
-- `tokenizers.py` provides precise optional tokenizer adapters (`tiktoken`, `anthropic`, `transformers`).
-- `extractors.py` assigns each shard to a facet and extracts entities.
-- `compressor.py` selects shards and creates a `ContextCapsule`.
-- `benchmark.py` compares capsules with deterministic clipping baselines.
-- `capsules.py` compares and merges JSON capsules.
-- `integrations.py` adapts chat messages, documents, and tool payloads.
-- `mcp_server.py` exposes compression, benchmark, streaming, explainability, and discovery tools over stdio MCP.
-- `plugins.py` defines dependency-free plugin and reranker protocols.
-- `profiles.py` provides conservative tokenizer estimate profiles.
-- `repo.py` collects repository state and selected files for coding-agent capsules.
-- `rerankers.py` contains optional reranking helpers.
-- `streaming.py` provides `StreamingCompressor` for incremental capsule updates.
-- `templates.py` provides domain-specific capsule presets (`coding`, `support`, `research`, `incident`).
-- `model.py` contains dataclasses for messages, shards, sections, and capsules.
-- `cli.py` exposes the package as `context-diamond` and `ctxd`.
+1. **Useful by default.** The deterministic classifier runs with no model API, no keys and no outside network calls. This is a **rules-based** system, not a trained ML classifier. It is predictable, explainable, and easy to demonstrate.
+2. **Human-in-the-loop.** All outcomes are advisory. A person reviews the suggestion; urgent and legal requests are explicitly escalated. The optional LLM does **not** override category, owner or priority.
+3. **Opt-in external model.** `PILOT_MODE=remote` plus `PILOT_LLM_BASE_URL` plus `PILOT_LLM_MODEL` are required. The API caller additionally sets `use_llm=true`; neither alone causes inference.
+4. **Mask before saving or forwarding.** Common emails and Russian phone numbers are replaced in the rule-engine output; the raw text is not stored by this application. This is **not complete PII detection**, and the regex does not cover every identifier.
+5. **Measured vs estimated.** Database counts and reported API tokens are observable. Labor savings come from user-specified **hypothetical** minutes and hourly rate; do not present the amount as achieved ROI.
+6. **Agent integration.** The MCP server exposes three tools: `preview_ticket`, `get_work_queue` and `get_process_metrics`. It doesn't expose write/delete tools; the HTTP API handles state changes.
 
-The default CLI and library path have no runtime dependencies outside the Python
-standard library.
+### Components
 
-## Why Deterministic Extraction
+- `api.py`: REST API, schemas, dashboard assets, lifespan database setup.
+- `engine.py`: deterministic routing, priority rules, matching explanations and partial PII redaction.
+- `llm.py`: optional OpenAI-compatible completion API, strict action-only response handling and consumption-based API cost estimate.
+- `store.py`: SQLite persistence and statistics.
+- `mcp_server.py`: stdio Model Context Protocol.
+- `src/processpilot/web/`: dependency-free dashboard HTML/CSS/JS.
 
-The default compressor is designed to run before any LLM call. That means it
-must be predictable, cheap, and inspectable. Instead of asking a model to
-summarize, Context Diamond keeps source-adjacent shards and organizes them into
-facets that are useful for downstream reasoning.
+### Known constraints
 
-## Extension Points
-
-The current implementation can be extended in several places:
-
-- tokenizer profiles for vendor-specific token counting
-- scoring rules for domain-specific importance
-- shard plugins registered with `register_plugin()`
-- rerankers for optional embedding or LLM-backed selection
-- adapters for additional agent runtimes and issue trackers
-
-These additions should preserve the current no-network default.
-
-## Optional Embedding Reranking
-
-`EmbeddingReranker` accepts a caller-provided embedding function:
-
-```python
-from context_diamond import CompressionConfig, ContextDiamondCompressor, EmbeddingReranker
-
-def embed(texts: list[str]) -> list[list[float]]:
-    return my_embedding_provider(texts)
-
-compressor = ContextDiamondCompressor(
-    CompressionConfig(reranker=EmbeddingReranker(embed, query="constraints decisions risks"))
-)
-```
-
-Context Diamond does not import an embedding SDK or make network calls by
-itself. Provider-specific code belongs at the application boundary.
+- Not for direct public internet exposure without auth, user roles, reverse proxy and rate limits.
+- No production email, CRM, Telegram or n8n connector. `source` is metadata only; inbound API/CSV adapters can be added later.
+- No claims about compliance with Russian personal data legislation. Host locally, assess data flows and obtain the necessary legal/security review.
+- No request queues/retries for remote inference. Only per-request processing.
+- SQLite is adequate for a single instance / demo. A production multi-worker service may need Postgres and a job queue.
+- Cost calculation is a per-request approximation using **user-configured** example rates; provider usage reports may be missing and hosting/hardware are excluded.
+- Current demo preserves local ticket records. Manual deletion or database retention policy must be added for real users.
