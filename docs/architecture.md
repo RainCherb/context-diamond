@@ -27,6 +27,7 @@ Web dashboard / REST clients / MCP-capable coding agents
 4. **Mask before saving or forwarding.** Common emails and Russian phone numbers are replaced in the rule-engine output; the raw text is not stored by this application. This is **not complete PII detection**, and the regex does not cover every identifier.
 5. **Measured vs estimated.** Database counts and reported API tokens are observable. Labor savings come from user-specified **hypothetical** minutes and hourly rate; do not present the amount as achieved ROI.
 6. **Agent integration.** The MCP server exposes three tools: `preview_ticket`, `get_work_queue` and `get_process_metrics`. It doesn't expose write/delete tools; the HTTP API handles state changes.
+7. **Local HTTP hardening.** Browser mutations are same-origin guarded, `Host` is allowlisted, malformed authority values are rejected, and security decisions use the raw ASGI path. These controls reduce local-demo risk but do not replace production authentication.
 
 ### Components
 
@@ -39,7 +40,7 @@ Web dashboard / REST clients / MCP-capable coding agents
 
 ### Known constraints
 
-- Not for direct public internet exposure without auth, user roles, reverse proxy and rate limits.
+- Not for direct public internet exposure without auth, user roles, reverse proxy, request-size limits and rate limits.
 - No production email, CRM, Telegram or n8n connector. `source` is metadata only; inbound API/CSV adapters can be added later.
 - No claims about compliance with Russian personal data legislation. Host locally, assess data flows and obtain the necessary legal/security review.
 - No request queues/retries for remote inference. Only per-request processing.
