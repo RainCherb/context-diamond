@@ -10,6 +10,17 @@ from .config import Settings
 from .engine import classify
 from .store import Store
 
+MAX_TICKET_CHARS = 8000
+
+
+def _validated_text(text: str) -> str:
+    value = text.strip()
+    if len(value) < 5:
+        raise ValueError("Текст обращения должен содержать не менее 5 символов")
+    if len(value) > MAX_TICKET_CHARS:
+        raise ValueError(f"Текст обращения не должен превышать {MAX_TICKET_CHARS} символов")
+    return value
+
 
 def create_mcp_server():
     try:
@@ -24,7 +35,7 @@ def create_mcp_server():
     @mcp.tool()
     def preview_ticket(text: str) -> dict:
         """Classify an incoming request WITHOUT saving it to the database."""
-        return classify(text).to_dict()
+        return classify(_validated_text(text)).to_dict()
 
     @mcp.tool()
     def get_work_queue(limit: int = 20) -> list[dict]:

@@ -17,10 +17,26 @@ class LLMError(Exception):
 
 
 def validate_base_url(url: str) -> None:
-    """Reject unsafe URL forms. Deployment must also enforce egress controls."""
+    """Reject unsafe or ambiguous URL forms.
+
+    The URL is controlled by the deployer rather than HTTP clients, so private and
+    loopback endpoints remain allowed for local/self-hosted models. Production still
+    needs network-level egress controls.
+    """
     parsed = urlsplit(url)
-    if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
+    if (
+        parsed.scheme not in ("http", "https")
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.fragment
+        or parsed.query
+    ):
         raise LLMError("Неверный или небезопасный адрес LLM API")
+    try:
+        _ = parsed.port
+    except ValueError as exc:
+        raise LLMError("Некорректный порт LLM API") from exc
     if parsed.path not in ("", "/", "/v1", "/v1/"):
         raise LLMError("PILOT_LLM_BASE_URL должен указывать на корень API (например /v1)")
     # URL comes from the deployer, not from HTTP clients. Block common cloud metadata targets.
@@ -35,7 +51,14 @@ def validate_base_url(url: str) -> None:
 
 
 def estimate_cost_usd(prompt_tokens: int, completion_tokens: int, settings: Settings) -> float:
-    return round((prompt_tokens * settings.input_usd_per_million + completion_tokens * settings.output_usd_per_million) / 1_000_000, 8)
+    return round(
+        (
+            prompt_tokens * settings.input_usd_per_million
+            + completion_tokens * settings.output_usd_per_million
+        )
+        / 1_000_000,
+        8,
+    )
 
 
 async def enhance_with_llm(analysis: Analysis, settings: Settings) -> Analysis:
@@ -64,15 +87,26 @@ async def enhance_with_llm(analysis: Analysis, settings: Settings) -> Analysis:
         "response_format": {"type": "json_object"},
     }
     # Explicitly opt-in, and disable redirects/proxy inheritance to reduce accidental egress.
-    async with httpx.AsyncClient(timeout=settings.llm_timeout, follow_redirects=False, trust_env=False) as client:
+    async with httpx.AsyncClient(
+        timeout=settings.llm_timeout,
+        follow_redirects=False,
+        trust_env=False,
+    ) as client:
         try:
-            resp = await client.post(f"{settings.llm_base_url}/chat/completions", headers=headers, json=payload)
+            resp = await client.post(
+                f"{settings.llm_base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+            )
             resp.raise_for_status()
             body = resp.json()
             raw = body["choices"][0]["message"]["content"]
             obj = json.loads(raw)
             action = obj.get("action", "")
-            if not isinstance(action, str) or not (4 <= len(action) <= 220):
+            if not isinstance(action, str):
+                raise LLMError("Некорректный ответ модели")
+            action = action.strip()
+            if not (4 <= len(action) <= 220):
                 raise LLMError("Некорректный ответ модели")
             usage = body.get("usage") or {}
             in_tokens = max(0, int(usage.get("prompt_tokens") or 0))
@@ -84,7 +118,10 @@ async def enhance_with_llm(analysis: Analysis, settings: Settings) -> Analysis:
                 input_tokens=in_tokens,
                 output_tokens=out_tokens,
                 api_cost_usd=estimate_cost_usd(in_tokens, out_tokens, settings),
-                reasons=analysis.reasons + ["Предложение действия подготовлено LLM; требуется проверка оператором"],
+                reasons=analysis.reasons
+                + ["Предложение действия подготовлено LLM; требуется проверка оператором"],
             )
-        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        except LLMError:
+            raise
+        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
             raise LLMError("LLM недоступна или вернула неподдерживаемый ответ") from exc

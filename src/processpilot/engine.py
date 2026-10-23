@@ -65,6 +65,22 @@ def mask_contact_details(text: str) -> tuple[str, bool]:
     return masked, masked != text
 
 
+def _category_signal_matches(text: str, signal: str) -> bool:
+    """Use word boundaries for English keywords, stems/substrings for Russian rules."""
+    if signal.isascii() and re.fullmatch(r"[a-z0-9]+", signal):
+        return re.search(rf"(?<![a-z0-9_]){re.escape(signal)}(?![a-z0-9_])", text) is not None
+    return signal in text
+
+
+def _risk_term_matches(text: str, term: str) -> bool:
+    """Match a risk term from the start of a word to avoid `несрочно`/`посуда` false positives."""
+    if " " in term:
+        return term in text
+    if term.isascii():
+        return re.search(rf"(?<![a-z0-9_]){re.escape(term)}(?![a-z0-9_])", text) is not None
+    return re.search(rf"(?<!\w){re.escape(term)}", text, flags=re.UNICODE) is not None
+
+
 def classify(text: str) -> Analysis:
     if not text.strip():
         raise ValueError("Текст обращения не должен быть пустым")
@@ -73,7 +89,10 @@ def classify(text: str) -> Analysis:
     scores: dict[str, int] = {}
     reasons: list[str] = []
     for category, data in CATEGORIES.items():
-        hits = [p for p in data["patterns"] if p.replace("ё", "е") in lower]
+        # Normalize and deduplicate patterns: e.g. "счет" and "счёт" become the
+        # same token after ё→е normalization and must count only once.
+        normalized_patterns = {p.casefold().replace("ё", "е") for p in data["patterns"]}
+        hits = [pattern for pattern in normalized_patterns if _category_signal_matches(lower, pattern)]
         if hits:
             scores[category] = len(hits)
     key = max(scores, key=lambda k: scores[k]) if scores else "general"
@@ -85,8 +104,8 @@ def classify(text: str) -> Analysis:
         label, owner, action = category["label"], category["owner"], category["action"]
         reasons.append(f"Совпадение с тематикой «{label}» ({scores[key]} признака/ов)")
 
-    is_urgent = any(t in lower for t in URGENT_TERMS)
-    requires_human = any(t in lower for t in ESCALATE_TERMS)
+    is_urgent = any(_risk_term_matches(lower, term) for term in URGENT_TERMS)
+    requires_human = any(_risk_term_matches(lower, term) for term in ESCALATE_TERMS)
     priority = "high" if is_urgent else "medium" if requires_human or key == "technical" else "low"
     if is_urgent:
         reasons.append("Обнаружен признак срочности — требуется оперативная проверка")

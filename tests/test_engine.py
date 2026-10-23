@@ -1,8 +1,11 @@
+import math
+
 import pytest
 
+from processpilot.config import Settings
 from processpilot.engine import classify, mask_contact_details
 from processpilot.llm import LLMError, estimate_cost_usd, validate_base_url
-from processpilot.config import Settings
+from processpilot.mcp_server import _validated_text
 
 
 @pytest.mark.parametrize("text,category,owner", [
@@ -19,6 +22,21 @@ def test_classification(text, category, owner):
     assert item.reasons
     assert item.handling_mode in ("draft-for-review", "human-review")
 
+
+def test_normalized_patterns_are_not_double_counted():
+    # "счет" and "счёт" are two source spellings of the same normalized token.
+    # Billing must not receive two votes and incorrectly tie delivery here.
+    x = classify("Нужен счёт, а ещё заказ и доставка задерживаются")
+    assert x.category == "delivery"
+
+
+
+
+def test_keyword_matching_avoids_common_substring_false_positives():
+    assert classify("Это несрочно, небольшая ошибка").priority == "medium"
+    assert classify("Нужна посуда для кухни").priority == "low"
+    assert classify("Нужно обсудить border design").category == "general"
+    assert classify("We build industrial automation").category == "general"
 
 def test_high_priority_stays_human_review():
     x = classify("СРОЧНО! Критичный сбой, не работает оплата")
@@ -53,6 +71,14 @@ def test_empty_rejected():
         classify("   ")
 
 
+def test_mcp_preview_input_has_same_bounds_as_http_api():
+    assert _validated_text("  Обычный запрос  ") == "Обычный запрос"
+    with pytest.raises(ValueError):
+        _validated_text("    ")
+    with pytest.raises(ValueError):
+        _validated_text("x" * 8001)
+
+
 def test_cost_formula_uses_assumption_not_live_price():
     settings = Settings(input_usd_per_million=0.5, output_usd_per_million=1)
     assert estimate_cost_usd(1_000_000, 1_000_000, settings) == 1.5
@@ -67,3 +93,19 @@ def test_url_validator():
         validate_base_url("http://169.254.169.254/v1")
     with pytest.raises(LLMError):
         validate_base_url("https://alice:secret@example.org/v1")
+    with pytest.raises(LLMError):
+        validate_base_url("https://api.example.org/v1?token=surprise")
+    with pytest.raises(LLMError):
+        validate_base_url("https://api.example.org:99999/v1")
+
+
+def test_non_finite_numeric_environment_values_fall_back(monkeypatch):
+    monkeypatch.setenv("PILOT_LLM_TIMEOUT_SECONDS", "nan")
+    monkeypatch.setenv("PILOT_INPUT_USD_PER_1M", "inf")
+    monkeypatch.setenv("PILOT_OUTPUT_USD_PER_1M", "-5")
+    settings = Settings.from_env()
+    assert math.isfinite(settings.llm_timeout)
+    assert math.isfinite(settings.input_usd_per_million)
+    assert settings.llm_timeout == 15.0
+    assert settings.input_usd_per_million == 0.25
+    assert settings.output_usd_per_million == 0.0

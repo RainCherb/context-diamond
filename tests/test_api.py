@@ -57,6 +57,8 @@ def test_invalid_and_remote_opt_in(tmp_path):
         ).status_code == 422
 
 
+
+
 def test_untrusted_host_is_rejected_to_reduce_dns_rebinding_risk(tmp_path):
     with make_client(tmp_path) as client:
         response = client.get("/api/health", headers={"Host": "attacker.example"})
@@ -64,7 +66,6 @@ def test_untrusted_host_is_rejected_to_reduce_dns_rebinding_risk(tmp_path):
         assert response.json()["detail"] == "Invalid host header"
         malformed = client.get("/api/health", headers={"Host": "testserver/api/health"})
         assert malformed.status_code == 400
-
 
 def test_cross_origin_browser_mutations_are_rejected(tmp_path):
     with make_client(tmp_path) as client:
