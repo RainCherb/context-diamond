@@ -24,9 +24,9 @@
       </nav>
       <div class="sidebar-label integrations-label">ИНТЕГРАЦИИ</div>
       <div class="integration-item"><span class="integration-signal"></span> Offline Engine <span class="integrations-tag">ACTIVE</span></div>
-      <div class="integration-item"><span class="integration-symbol">↗</span> MCP Tools <span class="integrations-tag pale">READY</span></div>
+      <div class="integration-item"><span class="integration-symbol">↗</span> MCP Tools <span class="integrations-tag pale">OPTIONAL</span></div>
       <div class="sidebar-bottom">
-        <div class="server-status"><span class="status-dot"></span><div><strong>Локальный режим</strong><small>Данные остаются в этом сервисе</small></div></div>
+        <div class="server-status"><span class="status-dot"></span><div><strong id="server-status-title">Локальный режим</strong><small id="server-status-subtitle">Внешние модели не вызываются</small></div></div>
         <p>Пилотный проект для демонстрации автоматизации. Не предназначен для публичного доступа без аутентификации.</p>
       </div>
     </aside>
@@ -51,7 +51,7 @@
             <p class="panel-muted">Вставьте сообщение клиента. Система определит тему, приоритет, ответственную команду и следующий шаг.</p>
             <form id="analyze-form"><label class="field-label" for="ticket-text">ТЕКСТ ОБРАЩЕНИЯ</label><textarea id="ticket-text" minlength="5" maxlength="8000" required placeholder="Например: Срочно! Не проходит оплата заказа, клиент ждёт ответа..." spellcheck="true"></textarea>
               <div class="form-row"><label class="inline-label" for="source">ИСТОЧНИК</label><select id="source"><option value="web">Веб-форма</option><option value="telegram">Telegram</option><option value="email">Email</option><option value="crm">CRM</option></select><label class="toggle-wrap"><input type="checkbox" id="use-llm" disabled><span class="toggle-design"></span> Дополнить через LLM</label></div>
-              <div class="form-bottom"><div class="privacy-note">◉ Email и телефоны маскируются до сохранения</div><button class="button-primary" id="analyze-button" type="submit"><span>Обработать с ИИ</span> <span>↗</span></button></div>
+              <div class="form-bottom"><div class="privacy-note">◉ Типовые email и российские телефоны маскируются до сохранения</div><button class="button-primary" id="analyze-button" type="submit"><span>Обработать</span> <span>↗</span></button></div>
             </form><div id="form-feedback" class="feedback" role="status" aria-live="polite" hidden></div>
           </article>
           <article class="panel flow-panel"><div class="panel-heading"><div><span class="panel-kicker">02 / АВТОМАТИЗАЦИЯ</span><h2>Как это работает</h2></div></div>
